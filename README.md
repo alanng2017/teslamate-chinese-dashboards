@@ -24,12 +24,13 @@
 | 指标 | 数值 |
 | --- | --- |
 | Dashboard 数量 | 31个 ✅ |
+| 内部详情页 | 3个（行程/充电详情）|
 | 文件总大小 | ~1.2MB |
 | 面板总数 | 258个 |
 | 已汉化 | 258个 (100%) |
 | 汉化完成度 | 100% |
 | 质量等级 | A+ |
-| 最后更新 | 2026-02-08 |
+| 最后更新 | 2026-03-15 |
 
 **所有 Dashboard 均已完成简体中文汉化，开箱即用！** 🎉
 
@@ -262,8 +263,10 @@ services:
   grafana:
     image: teslamate/grafana:latest
     volumes:
-      # 挂载中文Dashboard
-      - ./teslamate-chinese-dashboards/grafana/dashboards/zh-cn:/etc/grafana/provisioning/dashboards/zh:ro
+      # 挂载中文Dashboard（主要仪表板）
+      - ./teslamate-chinese-dashboards/grafana/dashboards/zh-cn:/dashboards:ro
+      # 挂载内部详情页（行程详情/充电详情）⚠️ 路径必须是 /dashboards_internal/
+      - ./teslamate-chinese-dashboards/grafana/dashboards/internal:/dashboards_internal:ro
     environment:
       - GF_DEFAULT_LANGUAGE=zh-Hans
 ```
@@ -273,6 +276,8 @@ services:
 git clone https://github.com/wjsall/teslamate-chinese-dashboards.git
 docker compose restart grafana
 ```
+
+> ⚠️ **注意**：`internal/` 必须挂载到 `/dashboards_internal/`（带下划线），否则行程详情、充电详情页仍显示英文。
 
 ## 🔄 更新方法
 
@@ -374,38 +379,29 @@ docker compose restart grafana
 ## 📦 版本信息
 
 ### 当前版本
-- **版本号**: v1.0.0
-- **发布日期**: 2026-02-08
-- **Dashboard 数量**: 31个
+- **版本号**: v1.2.0
+- **发布日期**: 2026-03-15
+- **Dashboard 数量**: 31个（+ 3个内部详情页）
 - **汉化完成度**: 100%
 
 ### 兼容性
 - ✅ TeslaMate v1.28.0+
-- ✅ Grafana 9.0+
+- ✅ Grafana 12.x（基于 teslamate/grafana:latest）
+- ⚠️ 不兼容 Grafana 9.x/10.x（使用了 12.x 专有特性）
 - ✅ Docker 20.10+
 - ✅ Docker Compose 2.0+
 
 ### 更新日志
 
-#### v1.0.3 (2026-02-08)
-- 📝 继续汉化遗漏内容
-  - 汉化所有按钮链接 (View charge details→查看充电详情, Set Cost→设置费用等)
-  - 汉化数据链接 (Trip→行程, Drives→行程列表, Charging stats→充电统计等)
-  - 汉化警告信息 (寒冷天气提示)
-  - 汉化面板标题 (Stats per month→每月统计, Help→帮助等)
-  - 更新 18 个文件，汉化完成度接近 100%
-
-#### v1.0.2 (2026-02-08)
-- 🗺️ 更换为高德标准地图
-  - 将 CartoDB 更换为高德标准地图
-  - 国内访问速度更快
-  - 中文街道标注，更符合国内用户习惯
-
-#### v1.0.1 (2026-02-08)
-- 🗺️ 修复地图加载问题
-  - 将 OpenStreetMap 更换为 CartoDB 地图服务
-  - 修复 7 个包含地图的 Dashboard
-  - 国内用户可以正常访问地图
+#### v1.2.0 (2026-03-15)
+- 🔧 全面修复汉化质量问题
+  - 修复时间线、电池健康、行程统计等多个仪表板列顺序错乱
+  - 修复充电曲线图悬浮提示英文（Power [kW]、SOC [%] 等）
+  - 修复行程详情页英文图例（battery_heater、is_climate_on、fan_status）
+  - 修复 11 个文件 datasource type 错误（postgres → grafana-postgresql-datasource）
+  - 修复 drive-details 内部页部署路径（/dashboards_internal/）
+  - 统一日期/时长格式为中文（2025年10月、2天12小时）
+  - 修复速度直方图、超级充电站排名、行程列表等无数据问题
 
 #### v1.0.0 (2026-02-08)
 - 🎉 初始版本发布
@@ -436,11 +432,15 @@ teslamate-chinese-dashboards/
 ├── docker-compose.yml          # Docker Compose配置
 ├── grafana/
 │   └── dashboards/
-│       └── zh-cn/              # 31个汉化Dashboard
-│           ├── overview.json
-│           ├── states.json
-│           ├── charging-stats.json
-│           └── ... (共31个)
+│       ├── zh-cn/              # 31个主要汉化Dashboard → 挂载到 /dashboards/
+│       │   ├── overview.json
+│       │   ├── states.json
+│       │   ├── charging-stats.json
+│       │   └── ... (共31个)
+│       └── internal/           # 3个内部详情页 → 挂载到 /dashboards_internal/
+│           ├── drive-details.json
+│           ├── charge-details.json
+│           └── charge-details-solar.json
 └── .github/
     └── workflows/
         └── ghcr-build.yml      # GitHub Actions 自动构建
