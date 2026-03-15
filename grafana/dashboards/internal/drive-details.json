@@ -482,6 +482,18 @@
                 "value": "电池电量"
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "battery_heater"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "电池加热器"
+              }
+            ]
           }
         ]
       },
@@ -1123,6 +1135,30 @@
               {
                 "id": "displayName",
                 "value": "车外温度"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "is_climate_on"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "空调开关"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "fan_status"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "风扇状态"
               }
             ]
           }
