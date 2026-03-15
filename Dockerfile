@@ -17,8 +17,5 @@ COPY grafana/dashboards/zh-cn/*.json /dashboards/
 # 复制 Internal Dashboards
 COPY grafana/dashboards/internal/*.json /dashboards/internal/
 
-# 复制数据源 Provisioning 配置（确保 UID 为 TeslaMate，与仪表板一致）
-COPY grafana/provisioning/datasources/teslamate.yml /etc/grafana/provisioning/datasources/teslamate.yml
-
 # 暴露端口
 EXPOSE 3000
