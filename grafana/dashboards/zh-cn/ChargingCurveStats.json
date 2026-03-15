@@ -240,7 +240,7 @@
         "series": [
           {
             "pointColor": {
-              "field": "Power [kW]",
+              "field": "功率 [kW]",
               "fixed": "super-light-yellow"
             },
             "pointSize": {
@@ -248,20 +248,20 @@
               "max": 100,
               "min": 1
             },
-            "x": "SOC [%]",
-            "y": "Power [kW]"
+            "x": "电量 [%]",
+            "y": "功率 [kW]"
           },
           {
             "pointColor": {
-              "field": "B - SOC [%]"
+              "field": "B - 电量 [%]"
             },
             "pointSize": {
               "fixed": 12,
               "max": 100,
               "min": 1
             },
-            "x": "B - SOC [%]",
-            "y": "B - Avg Power [kW]"
+            "x": "B - 电量 [%]",
+            "y": "B - 平均功率 [kW]"
           }
         ],
         "seriesMapping": "manual",
@@ -489,27 +489,27 @@
         "series": [
           {
             "pointColor": {
-              "field": "Power [kW]"
+              "field": "功率 [kW]"
             },
             "pointSize": {
               "fixed": 2,
               "max": 100,
               "min": 1
             },
-            "x": "SOC [%]",
-            "y": "Power [kW]"
+            "x": "电量 [%]",
+            "y": "功率 [kW]"
           },
           {
             "pointColor": {
-              "field": "B - Avg Power [kW]"
+              "field": "B - 平均功率 [kW]"
             },
             "pointSize": {
               "fixed": 10,
               "max": 100,
               "min": 1
             },
-            "x": "B - SOC [%]",
-            "y": "B - Avg Power [kW]"
+            "x": "B - 电量 [%]",
+            "y": "B - 平均功率 [kW]"
           }
         ],
         "seriesMapping": "manual",
@@ -857,7 +857,7 @@
           "mode": "single",
           "sort": "none"
         },
-        "xField": "Power [kW]",
+        "xField": "功率 [kW]",
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
       },
