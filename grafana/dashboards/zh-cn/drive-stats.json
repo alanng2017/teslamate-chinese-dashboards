@@ -1150,7 +1150,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "已用时间"
+              "options": "Elapsed"
             },
             "properties": [
               {
@@ -1199,7 +1199,7 @@
       "options": {
         "barRadius": 0.05,
         "barWidth": 0.97,
-        "colorByField": "已用时间",
+        "colorByField": "Elapsed",
         "fullHighlight": false,
         "groupWidth": 0.7,
         "legend": {
@@ -1218,7 +1218,7 @@
           "mode": "multi",
           "sort": "none"
         },
-        "xField": "速度",
+        "xField": "Speed",
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
       },
@@ -1368,7 +1368,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH since as (\r\n\tSELECT timezone('UTC', min(start_date)) as date FROM drives\r\n\tWHERE car_id = $car_id\r\n\tGROUP BY car_id\r\n)\r\n\r\nselect\r\n  convert_km(((max(end_km) - min(start_km)) / greatest(extract(days from (timestamp with time zone $__timeTo() - greatest(timestamp with time zone $__timeFrom(), (select date from since)))), 1) * (365/12))::numeric, '$length_unit') as \"里程\"\r\nfrom drives\r\nwhere car_id = $car_id and $__timeFilter(start_date) and end_date is not null\r\ngroup by car_id",
+          "rawSql": "WITH since as (\r\n\tSELECT timezone('UTC', min(start_date)) as date FROM drives\r\n\tWHERE car_id = $car_id\r\n\tGROUP BY car_id\r\n)\r\n\r\nselect\r\n  convert_km(((max(end_km) - min(start_km)) / greatest(extract(days from (timestamp with time zone $__timeTo() - greatest(timestamp with time zone $__timeFrom(), (select date from since)))), 1) * (365/12))::numeric, '$length_unit') as \"mileage_$length_unit\"\r\nfrom drives\r\nwhere car_id = $car_id and $__timeFilter(start_date) and end_date is not null\r\ngroup by car_id",
           "refId": "A",
           "sql": {
             "columns": [
