@@ -180,7 +180,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "Battery heater (On/Off)"
+                "value": "电池加热器（开/关）"
               }
             ]
           },
@@ -240,7 +240,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "SOC (%)"
+                "value": "电量（%）"
               }
             ]
           },
@@ -996,7 +996,7 @@
               },
               {
                 "id": "displayName",
-                "value": "Avg Speed"
+                "value": "平均速度"
               }
             ]
           },
@@ -1012,7 +1012,7 @@
               },
               {
                 "id": "displayName",
-                "value": "Avg Speed"
+                "value": "平均速度"
               }
             ]
           },

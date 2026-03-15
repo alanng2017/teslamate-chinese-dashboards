@@ -142,7 +142,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "Start Date"
+                "value": "开始日期"
               },
               {
                 "id": "unit",
@@ -238,7 +238,7 @@
               },
               {
                 "id": "displayName",
-                "value": "End Date"
+                "value": "结束日期"
               },
               {
                 "id": "unit",
@@ -278,7 +278,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "Avg Speed"
+                "value": "平均速度"
               },
               {
                 "id": "custom.minWidth",
@@ -298,7 +298,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "Avg Speed"
+                "value": "平均速度"
               },
               {
                 "id": "custom.minWidth",
@@ -358,7 +358,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "max Power"
+                "value": "最大功率"
               },
               {
                 "id": "unit",
@@ -378,7 +378,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "max Speed"
+                "value": "最大速度"
               },
               {
                 "id": "unit",
@@ -398,7 +398,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "max Speed"
+                "value": "最大速度"
               },
               {
                 "id": "unit",
@@ -422,7 +422,7 @@
               },
               {
                 "id": "displayName",
-                "value": "Temp"
+                "value": "温度"
               },
               {
                 "id": "custom.minWidth",
@@ -438,7 +438,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "Temp"
+                "value": "温度"
               },
               {
                 "id": "unit",
