@@ -123,7 +123,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "开始日期"
+              "options": "start_date"
             },
             "properties": [
               {
@@ -153,7 +153,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "结束日期"
+              "options": "end_date"
             },
             "properties": [
               {
@@ -206,7 +206,7 @@
               },
               {
                 "id": "unit",
-                "value": "s"
+                "value": "h"
               },
               {
                 "id": "decimals",
@@ -228,7 +228,7 @@
                     },
                     {
                       "color": "#56A64B",
-                      "value": 43200
+                      "value": 12
                     }
                   ]
                 }
