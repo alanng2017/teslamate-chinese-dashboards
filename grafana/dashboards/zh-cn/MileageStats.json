@@ -475,7 +475,7 @@
           ]
         }
       ],
-      "title": "每${period:text}统计",
+      "title": "每${period}统计",
       "transformations": [
         {
           "id": "seriesToColumns",
@@ -835,7 +835,7 @@
           ]
         }
       ],
-      "title": "每${period:text}行驶里程与行程次数",
+      "title": "每${period}行驶里程与行程次数",
       "transformations": [
         {
           "id": "filterFieldsByName",
@@ -963,7 +963,7 @@
             "value": "week"
           }
         ],
-        "query": "month,year,day,week",
+        "query": "月 : month,年 : year,日 : day,周 : week",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
