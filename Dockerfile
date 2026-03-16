@@ -12,8 +12,10 @@ ENV GF_USERS_DEFAULT_LANGUAGE=zh-Hans
 ENV GF_USERS_DEFAULT_LOCALE=zh-Hans
 
 # 确保数据源 UID 固定为 TeslaMate，避免仪表板无数据
+# 先检查是否已存在，避免重复插入导致 YAML 解析错误（容器无限重启）
 USER root
-RUN sed -i '/^  - name: TeslaMate$/a\    uid: TeslaMate' \
+RUN grep -q 'uid: TeslaMate' /etc/grafana/provisioning/datasources/datasource.yml || \
+    sed -i '/^  - name: TeslaMate$/a\    uid: TeslaMate' \
     /etc/grafana/provisioning/datasources/datasource.yml
 USER grafana
 
