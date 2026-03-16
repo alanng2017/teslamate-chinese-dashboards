@@ -244,7 +244,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  CASE\n    WHEN secs IS NULL THEN NULL\n    WHEN secs < 3600   THEN floor(secs/60)::int::text || ' 分钟'\n    WHEN secs < 86400  THEN floor(secs/3600)::int::text || ' 小时'\n    WHEN secs < 604800 THEN floor(secs/86400)::int::text || ' 天'\n    WHEN secs < 2592000 THEN floor(secs/604800)::int::text || ' 周 ' || (floor(secs/86400)::int % 7)::text || ' 天'\n    ELSE floor(secs/2592000)::int::text || ' 个月 ' || (floor(secs/86400)::int % 30)::text || ' 天'\n  END AS \"更新间隔中位数\"\nFROM (\n  SELECT percentile_disc(0.5) WITHIN GROUP (ORDER BY since_last_update) AS secs FROM (\n    SELECT extract(EPOCH FROM start_date - lag(start_date) OVER (ORDER BY start_date)) AS since_last_update\n    FROM updates\n    WHERE $__timeFilter(start_date) AND car_id = $car_id\n  ) d\n) sub",
+          "rawSql": "SELECT\n  CASE\n    WHEN secs IS NULL THEN NULL\n    WHEN secs < 3600   THEN floor(secs/60)::int::text || ' 分钟'\n    WHEN secs < 86400  THEN floor(secs/3600)::int::text || ' 小时'\n    WHEN secs < 604800 THEN floor(secs/86400)::int::text || ' 天'\n    WHEN secs < 2592000 THEN floor(secs/604800)::int::text || ' 周 ' || (floor(secs/86400)::int % 7)::text || ' 天'\n    ELSE floor(secs/2592000)::int::text || ' 个月 ' || (floor(secs/86400)::int % 30)::text || ' 天'\n  END AS \"两次更新平均间隔\"\nFROM (\n  SELECT percentile_disc(0.5) WITHIN GROUP (ORDER BY since_last_update) AS secs FROM (\n    SELECT extract(EPOCH FROM start_date - lag(start_date) OVER (ORDER BY start_date)) AS since_last_update\n    FROM updates\n    WHERE $__timeFilter(start_date) AND car_id = $car_id\n  ) d\n) sub",
           "refId": "A",
           "sql": {
             "columns": [
@@ -265,7 +265,7 @@
           }
         }
       ],
-      "title": "更新间隔中位数",
+      "title": "两次更新平均间隔",
       "type": "stat"
     },
     {
