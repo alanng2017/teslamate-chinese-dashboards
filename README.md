@@ -11,6 +11,26 @@
 ![GitHub Issues](https://img.shields.io/github/issues/wjsall/teslamate-chinese-dashboards)
 ![Build Status](https://github.com/wjsall/teslamate-chinese-dashboards/actions/workflows/ghcr-build.yml/badge.svg)
 
+## 📸 效果预览
+
+| 概览 | 电池健康度 |
+|------|-----------|
+| ![概览](screenshots/overview.png) | ![电池健康度](screenshots/battery-health.png) |
+
+| 里程统计 | 充电记录 |
+|---------|---------|
+| ![里程统计](screenshots/mileage-stats.png) | ![充电记录](screenshots/charges.png) |
+
+| 电池容量曲线 | 行程追踪地图 |
+|------------|------------|
+| ![电池容量曲线](screenshots/charge-level.png) | ![行程追踪](screenshots/tracking.png) |
+
+| 时间线 | 电池容量曲线（全量） |
+|--------|-----------------|
+| ![时间线](screenshots/timeline.png) | ![电池容量曲线2](screenshots/charge-level-2.png) |
+
+---
+
 ## 🎯 特点
 
 - ✅ **开箱即用** - 无需 Docker Hub 账号，直接挂载使用
@@ -492,7 +512,7 @@ teslamate-chinese-dashboards/
 ### 本汉化项目
 - **GitHub**: https://github.com/wjsall/teslamate-chinese-dashboards
 - **问题反馈**: https://github.com/wjsall/teslamate-chinese-dashboards/issues
-- **中文文档**: https://www.teslamate.com.cn
+- **中文文档**: https://github.com/wjsall/teslamate-chinese-dashboards
 
 ## 👏 贡献者
 
