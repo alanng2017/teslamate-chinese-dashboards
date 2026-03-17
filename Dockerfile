@@ -1,5 +1,5 @@
-# 基于 TeslaMate 官方 Grafana 镜像
-FROM teslamate/grafana:latest
+# 基于 TeslaMate 官方 Grafana 镜像（锁定版本，避免上游变更导致容器崩溃）
+FROM teslamate/grafana:3.0.0
 
 # 标签信息
 LABEL maintainer="wjsall"

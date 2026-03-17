@@ -280,6 +280,8 @@ docker compose up -d grafana
 
 ### 方法五：手动挂载 Dashboard（高级用户）
 
+> ⚠️ **版本要求**：部分仪表板使用 `schemaVersion 41`，需要 **Grafana 12+**（即 TeslaMate Grafana 镜像 3.0.0+）。旧版 Grafana 可能出现面板渲染异常。
+
 在你的 `docker-compose.yml` 中添加：
 
 ```yaml
