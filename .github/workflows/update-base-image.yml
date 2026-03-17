@@ -1,0 +1,79 @@
+name: 检查并更新基础镜像版本
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # 每周一凌晨 2 点运行
+  workflow_dispatch:       # 支持手动触发
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 获取 Docker Hub 最新版本
+        id: latest
+        run: |
+          LATEST=$(curl -s "https://registry.hub.docker.com/v2/repositories/teslamate/grafana/tags?page_size=20&ordering=last_updated" \
+            | python3 -c "
+          import json, sys, re
+          data = json.load(sys.stdin)
+          tags = [t['name'] for t in data['results'] if re.match(r'^\d+\.\d+\.\d+$', t['name'])]
+          print(tags[0] if tags else '')
+          ")
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+          echo "最新版本: $LATEST"
+
+      - name: 读取当前版本
+        id: current
+        run: |
+          CURRENT=$(grep -oP 'FROM teslamate/grafana:\K[\d.]+' Dockerfile)
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "当前版本: $CURRENT"
+
+      - name: 对比版本
+        id: compare
+        run: |
+          if [ "${{ steps.latest.outputs.latest }}" != "${{ steps.current.outputs.current }}" ]; then
+            echo "需要更新: ${{ steps.current.outputs.current }} → ${{ steps.latest.outputs.latest }}"
+            echo "need_update=true" >> $GITHUB_OUTPUT
+          else
+            echo "已是最新版本，无需更新"
+            echo "need_update=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 更新 Dockerfile
+        if: steps.compare.outputs.need_update == 'true'
+        run: |
+          sed -i "s|FROM teslamate/grafana:${{ steps.current.outputs.current }}|FROM teslamate/grafana:${{ steps.latest.outputs.latest }}|" Dockerfile
+          echo "Dockerfile 已更新"
+
+      - name: 创建 Pull Request
+        if: steps.compare.outputs.need_update == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: 更新基础镜像 teslamate/grafana ${{ steps.current.outputs.current }} → ${{ steps.latest.outputs.latest }}"
+          branch: "auto/update-base-image-${{ steps.latest.outputs.latest }}"
+          title: "🔄 基础镜像更新：teslamate/grafana ${{ steps.current.outputs.current }} → ${{ steps.latest.outputs.latest }}"
+          body: |
+            ## 自动检测到基础镜像新版本
+
+            | | 版本 |
+            |---|---|
+            | 当前版本 | `${{ steps.current.outputs.current }}` |
+            | 最新版本 | `${{ steps.latest.outputs.latest }}` |
+
+            ### 操作说明
+            - 合并此 PR 后将自动构建并推送新镜像
+            - 建议先查看 [TeslaMate 更新日志](https://github.com/teslamate-org/teslamate/releases) 确认无破坏性变更
+            - 如无问题直接点 **Merge pull request** 即可
+
+            ---
+            🤖 由 GitHub Actions 自动创建
+          labels: "dependencies,automated"
