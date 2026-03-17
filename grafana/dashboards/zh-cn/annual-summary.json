@@ -64,6 +64,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "年度总里程(km)",
       "type": "stat"
     },
     {
@@ -100,6 +101,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "总行程次数(次)",
       "type": "stat"
     },
     {
@@ -136,6 +138,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "年度总充电量(kWh)",
       "type": "stat"
     },
     {
@@ -146,7 +149,7 @@
           "thresholds": {"mode": "absolute", "steps": [{"color": "orange"}]},
           "unit": "none",
           "decimals": 2,
-          "displayName": "年度充电费用"
+          "displayName": "年度充电费用(元)"
         },
         "overrides": []
       },
@@ -172,6 +175,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "年度充电费用(元)",
       "type": "stat"
     },
     {
@@ -217,6 +221,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "最远单次行程(km)",
       "type": "stat"
     },
     {
@@ -253,6 +258,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "最高时速记录",
       "type": "stat"
     },
     {
@@ -289,6 +295,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "年均能耗(Wh/km)",
       "type": "stat"
     },
     {
@@ -325,6 +332,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "充电次数(次)",
       "type": "stat"
     },
     {

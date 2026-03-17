@@ -282,7 +282,7 @@
           "custom": {
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "停车时长 (小时)",
+            "axisLabel": "停车次数",
             "axisPlacement": "auto",
             "fillOpacity": 80,
             "gradientMode": "none",

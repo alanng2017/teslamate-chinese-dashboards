@@ -41,7 +41,7 @@
           },
           "unit": "none",
           "decimals": 2,
-          "displayName": "累计节省金额"
+          "displayName": "累计节省金额(元)"
         },
         "overrides": []
       },
@@ -67,6 +67,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "累计节省金额(元)",
       "type": "stat"
     },
     {
@@ -77,7 +78,7 @@
           "thresholds": {"mode": "absolute", "steps": [{"color": "red"}]},
           "unit": "none",
           "decimals": 2,
-          "displayName": "燃油等价费用"
+          "displayName": "燃油等价费用(元)"
         },
         "overrides": []
       },
@@ -103,6 +104,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "燃油等价费用(元)",
       "type": "stat"
     },
     {
@@ -113,7 +115,7 @@
           "thresholds": {"mode": "absolute", "steps": [{"color": "blue"}]},
           "unit": "none",
           "decimals": 2,
-          "displayName": "实际充电费用"
+          "displayName": "实际充电费用(元)"
         },
         "overrides": []
       },
@@ -139,6 +141,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "实际充电费用(元)",
       "type": "stat"
     },
     {
@@ -178,6 +181,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "节省比例",
       "type": "stat"
     },
     {
@@ -280,7 +284,7 @@
         "defaults": {
           "color": {"mode": "palette-classic"},
           "custom": {"axisLabel": "充电量 (kWh)", "fillOpacity": 70},
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {"matcher": {"id": "byName", "options": "energy_kwh"}, "properties": [{"id": "displayName", "value": "充电电量(kWh)"}]}
@@ -314,6 +318,8 @@
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
       "fieldConfig": {
         "defaults": {
+          "max": "$annual_budget",
+          "min": 0,
           "color": {"mode": "thresholds"},
           "thresholds": {
             "mode": "percentage",
@@ -348,21 +354,7 @@
         }
       ],
       "title": "今年充电费用 vs 年度预算",
-      "type": "gauge",
-      "fieldConfig": {
-        "defaults": {
-          "max": "$annual_budget",
-          "min": 0,
-          "color": {"mode": "thresholds"},
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [{"color": "green"}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]
-          },
-          "unit": "none",
-          "decimals": 2
-        },
-        "overrides": []
-      }
+      "type": "gauge"
     },
     {
       "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
@@ -372,7 +364,7 @@
           "thresholds": {"mode": "absolute", "steps": [{"color": "blue"}]},
           "unit": "none",
           "decimals": 4,
-          "displayName": "每公里电费"
+          "displayName": "每公里电费(元/km)"
         },
         "overrides": []
       },
@@ -398,6 +390,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "每公里电费(元/km)",
       "type": "stat"
     },
     {
@@ -408,7 +401,7 @@
           "thresholds": {"mode": "absolute", "steps": [{"color": "orange"}]},
           "unit": "none",
           "decimals": 2,
-          "displayName": "预测年底总费用"
+          "displayName": "预测年底总费用(元)"
         },
         "overrides": []
       },
@@ -434,6 +427,7 @@
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
       ],
+      "title": "预测年底总费用(元)",
       "type": "stat"
     }
   ],
