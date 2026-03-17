@@ -131,7 +131,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM(energy_used), 0) * 1000.0\n    / NULLIF(SUM(distance), 0)\n  )::numeric, 1) AS wh_per_km\nFROM drives\nWHERE car_id = $car_id\n  AND $__timeFilter(start_date)\n  AND EXTRACT(DOW FROM start_date) BETWEEN 1 AND 5\n  AND energy_used IS NOT NULL\n  AND distance > 0;",
+          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n  )::numeric, 1) AS wh_per_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND EXTRACT(DOW FROM d.start_date) BETWEEN 1 AND 5\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -167,7 +167,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM(energy_used), 0) * 1000.0\n    / NULLIF(SUM(distance), 0)\n  )::numeric, 1) AS wh_per_km\nFROM drives\nWHERE car_id = $car_id\n  AND $__timeFilter(start_date)\n  AND EXTRACT(DOW FROM start_date) IN (0, 6)\n  AND energy_used IS NOT NULL\n  AND distance > 0;",
+          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n  )::numeric, 1) AS wh_per_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND EXTRACT(DOW FROM d.start_date) IN (0, 6)\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -210,7 +210,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  EXTRACT(HOUR FROM start_date)::int AS hour,\n  COUNT(*) AS trip_count\nFROM drives\nWHERE car_id = $car_id AND $__timeFilter(start_date)\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "SELECT\n  TO_CHAR(start_date, 'HH24') || ':00' AS hour,\n  COUNT(*) AS trip_count\nFROM drives\nWHERE car_id = $car_id AND $__timeFilter(start_date)\nGROUP BY 1\nORDER BY 1;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -242,7 +242,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('month', start_date) AS time,\n  ROUND((\n    COALESCE(SUM(energy_used), 0) * 1000.0 / NULLIF(SUM(distance), 0)\n  )::numeric, 1) AS \"月均能耗\"\nFROM drives\nWHERE car_id = $car_id\n  AND $__timeFilter(start_date)\n  AND energy_used IS NOT NULL\n  AND distance > 0\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "SELECT\n  date_trunc('month', d.start_date) AS time,\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n  )::numeric, 1) AS \"月均能耗\"\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km\nGROUP BY 1\nORDER BY 1;",
           "refId": "A"
         }
       ],
@@ -289,7 +289,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  start_date,\n  ROUND(distance::numeric, 1) AS distance,\n  duration_min,\n  ROUND(speed_max::numeric, 0) AS speed_max,\n  ROUND(energy_used::numeric, 2) AS energy_used,\n  ROUND(outside_temp_avg::numeric, 1) AS outside_temp_avg\nFROM drives\nWHERE car_id = $car_id\n  AND $__timeFilter(start_date)\n  AND distance >= 100\n  AND speed_max >= 100\nORDER BY distance DESC\nLIMIT 50;",
+          "rawSql": "SELECT\n  d.start_date,\n  ROUND(d.distance::numeric, 1) AS distance,\n  d.duration_min,\n  ROUND(d.speed_max::numeric, 0) AS speed_max,\n  ROUND(((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency / 1000.0)::numeric, 2) AS energy_used,\n  ROUND(d.outside_temp_avg::numeric, 1) AS outside_temp_avg\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND d.distance >= 100\n  AND d.speed_max >= 100\nORDER BY d.distance DESC\nLIMIT 50;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -332,7 +332,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND(outside_temp_avg::numeric, 0) AS outside_temp,\n  ROUND((energy_used * 1000.0 / NULLIF(distance, 0))::numeric, 1) AS \"能耗(Wh/km)\"\nFROM drives\nWHERE car_id = $car_id\n  AND $__timeFilter(start_date)\n  AND outside_temp_avg IS NOT NULL\n  AND energy_used IS NOT NULL\n  AND distance > 5\nORDER BY outside_temp_avg;",
+          "rawSql": "SELECT\n  ROUND(d.outside_temp_avg::numeric, 0) AS outside_temp,\n  ROUND(((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency / NULLIF(d.distance, 0))::numeric, 1) AS \"能耗(Wh/km)\"\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND d.outside_temp_avg IS NOT NULL\n  AND d.distance > 5\n  AND d.start_ideal_range_km > d.end_ideal_range_km\nORDER BY d.outside_temp_avg;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }

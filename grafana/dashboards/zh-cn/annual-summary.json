@@ -144,7 +144,7 @@
         "defaults": {
           "color": {"mode": "thresholds"},
           "thresholds": {"mode": "absolute", "steps": [{"color": "orange"}]},
-          "unit": "currencyRMB",
+          "unit": "none",
           "decimals": 2,
           "displayName": "年度充电费用"
         },
@@ -284,7 +284,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM(energy_used), 0) * 1000.0 / NULLIF(SUM(distance), 0)\n  )::numeric, 1) AS avg_wh_km\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM start_date) = $year::int\n  AND energy_used IS NOT NULL\n  AND distance > 0;",
+          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n  )::numeric, 1) AS avg_wh_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND EXTRACT(YEAR FROM d.start_date) = $year::int\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -377,7 +377,7 @@
         "defaults": {
           "color": {"mode": "palette-classic"},
           "custom": {"lineWidth": 2, "fillOpacity": 10},
-          "unit": "currencyRMB",
+          "unit": "none",
           "decimals": 2
         },
         "overrides": []
@@ -440,7 +440,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(a.display_name, CONCAT(ROUND(p.latitude::numeric,4), ',', ROUND(p.longitude::numeric,4))) AS address,\n  COUNT(*) AS visit_count,\n  ROUND(SUM(d.distance)::numeric, 0) AS total_km\nFROM drives d\nJOIN positions p ON d.end_position_id = p.id\nLEFT JOIN addresses a ON p.address_id = a.id\nWHERE d.car_id = $car_id\n  AND EXTRACT(YEAR FROM d.start_date) = $year::int\nGROUP BY 1\nORDER BY visit_count DESC\nLIMIT 10;",
+          "rawSql": "SELECT\n  COALESCE(a.display_name, CONCAT(d.car_id, ' trip')) AS address,\n  COUNT(*) AS visit_count,\n  ROUND(SUM(d.distance)::numeric, 0) AS total_km\nFROM drives d\nLEFT JOIN addresses a ON d.end_address_id = a.id\nWHERE d.car_id = $car_id\n  AND EXTRACT(YEAR FROM d.start_date) = $year::int\n  AND a.display_name IS NOT NULL\nGROUP BY 1\nORDER BY visit_count DESC\nLIMIT 10;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -477,7 +477,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(a.display_name, CONCAT(ROUND(p.latitude::numeric,4), ',', ROUND(p.longitude::numeric,4))) AS address,\n  COUNT(*) AS charge_count,\n  ROUND(SUM(cp.charge_energy_added)::numeric, 1) AS total_kwh\nFROM charging_processes cp\nJOIN positions p ON cp.position_id = p.id\nLEFT JOIN addresses a ON p.address_id = a.id\nWHERE cp.car_id = $car_id\n  AND EXTRACT(YEAR FROM cp.start_date) = $year::int\nGROUP BY 1\nORDER BY charge_count DESC\nLIMIT 10;",
+          "rawSql": "SELECT\n  COALESCE(a.display_name, '未知地点') AS address,\n  COUNT(*) AS charge_count,\n  ROUND(SUM(cp.charge_energy_added)::numeric, 1) AS total_kwh\nFROM charging_processes cp\nLEFT JOIN addresses a ON cp.address_id = a.id\nWHERE cp.car_id = $car_id\n  AND EXTRACT(YEAR FROM cp.start_date) = $year::int\n  AND a.display_name IS NOT NULL\nGROUP BY 1\nORDER BY charge_count DESC\nLIMIT 10;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }

@@ -64,7 +64,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  GREATEST(0, LEAST(100,\n    -- 基础分 50\n    50\n    -- 避免充满(end>95): 扣分\n    + CASE WHEN full_pct <= 0.05 THEN 20 WHEN full_pct <= 0.15 THEN 10 WHEN full_pct <= 0.3 THEN 0 ELSE -10 END\n    -- 避免低电量(start<15): 扣分\n    + CASE WHEN low_pct <= 0.05 THEN 20 WHEN low_pct <= 0.1 THEN 10 WHEN low_pct <= 0.2 THEN 0 ELSE -10 END\n    -- 直流快充占比适中: 扣分\n    + CASE WHEN dc_pct <= 0.1 THEN 20 WHEN dc_pct <= 0.3 THEN 10 WHEN dc_pct <= 0.5 THEN 0 ELSE -10 END\n  ))::int AS score\nFROM (\n  SELECT\n    ROUND(AVG(CASE WHEN end_battery_level >= 95 THEN 1.0 ELSE 0.0 END), 3) AS full_pct,\n    ROUND(AVG(CASE WHEN start_battery_level <= 15 THEN 1.0 ELSE 0.0 END), 3) AS low_pct,\n    ROUND(AVG(CASE WHEN fast_charger_present = true THEN 1.0 ELSE 0.0 END), 3) AS dc_pct\n  FROM charging_processes\n  WHERE car_id = $car_id AND $__timeFilter(start_date)\n) sub;",
+          "rawSql": "SELECT\n  GREATEST(0, LEAST(100,\n    -- 基础分 50\n    50\n    -- 避免充满(end>95): 扣分\n    + CASE WHEN full_pct <= 0.05 THEN 20 WHEN full_pct <= 0.15 THEN 10 WHEN full_pct <= 0.3 THEN 0 ELSE -10 END\n    -- 避免低电量(start<15): 扣分\n    + CASE WHEN low_pct <= 0.05 THEN 20 WHEN low_pct <= 0.1 THEN 10 WHEN low_pct <= 0.2 THEN 0 ELSE -10 END\n    -- 直流快充占比适中: 扣分\n    + CASE WHEN dc_pct <= 0.1 THEN 20 WHEN dc_pct <= 0.3 THEN 10 WHEN dc_pct <= 0.5 THEN 0 ELSE -10 END\n  ))::int AS score\nFROM (\n  SELECT\n    ROUND(AVG(CASE WHEN end_battery_level >= 95 THEN 1.0 ELSE 0.0 END), 3) AS full_pct,\n    ROUND(AVG(CASE WHEN start_battery_level <= 15 THEN 1.0 ELSE 0.0 END), 3) AS low_pct,\n    ROUND(AVG(CASE WHEN fast_charger_brand IS NOT NULL THEN 1.0 ELSE 0.0 END), 3) AS dc_pct\n  FROM charging_processes\n  WHERE car_id = $car_id AND $__timeFilter(start_date)\n) sub;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -106,7 +106,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND(AVG(CASE WHEN fast_charger_present = true THEN 100.0 ELSE 0.0 END)::numeric, 1) AS dc_pct\nFROM charging_processes\nWHERE car_id = $car_id AND $__timeFilter(start_date);",
+          "rawSql": "SELECT\n  ROUND(AVG(CASE WHEN fast_charger_brand IS NOT NULL THEN 100.0 ELSE 0.0 END)::numeric, 1) AS dc_pct\nFROM charging_processes\nWHERE car_id = $car_id AND $__timeFilter(start_date);",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -226,7 +226,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND(AVG(CASE WHEN fast_charger_present = false OR fast_charger_present IS NULL THEN EXTRACT(EPOCH FROM (end_date - start_date))/60.0 ELSE NULL END)::numeric, 0) AS \"交流慢充均时(分)\"\nFROM charging_processes\nWHERE car_id = $car_id AND $__timeFilter(start_date) AND charge_energy_added > 1;",
+          "rawSql": "SELECT\n  ROUND(AVG(CASE WHEN fast_charger_brand IS NULL THEN EXTRACT(EPOCH FROM (end_date - start_date))/60.0 ELSE NULL END)::numeric, 0) AS \"交流慢充均时(分)\"\nFROM charging_processes\nWHERE car_id = $car_id AND $__timeFilter(start_date) AND charge_energy_added > 1;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -272,7 +272,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND(AVG(EXTRACT(EPOCH FROM (end_date - start_date))/60.0)::numeric, 0) AS avg_min\nFROM charging_processes\nWHERE car_id = $car_id AND $__timeFilter(start_date) AND fast_charger_present = true AND charge_energy_added > 1;",
+          "rawSql": "SELECT\n  ROUND(AVG(EXTRACT(EPOCH FROM (end_date - start_date))/60.0)::numeric, 0) AS avg_min\nFROM charging_processes\nWHERE car_id = $car_id AND $__timeFilter(start_date) AND fast_charger_brand IS NOT NULL AND charge_energy_added > 1;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -318,7 +318,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  soc_bucket AS soc,\n  SUM(start_count) AS \"充电前SOC\",\n  SUM(end_count) AS \"充电后SOC\"\nFROM (\n  SELECT\n    (FLOOR(start_battery_level / 10) * 10)::int AS soc_bucket,\n    COUNT(*) AS start_count,\n    0 AS end_count\n  FROM charging_processes\n  WHERE car_id = $car_id AND $__timeFilter(start_date)\n  GROUP BY 1\n  UNION ALL\n  SELECT\n    (FLOOR(end_battery_level / 10) * 10)::int AS soc_bucket,\n    0 AS start_count,\n    COUNT(*) AS end_count\n  FROM charging_processes\n  WHERE car_id = $car_id AND $__timeFilter(start_date)\n  GROUP BY 1\n) sub\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "SELECT\n  soc_bucket AS soc,\n  SUM(start_count) AS \"充电前SOC\",\n  SUM(end_count) AS \"充电后SOC\"\nFROM (\n  SELECT\n    ((FLOOR(start_battery_level / 10) * 10)::int)::text || '%' AS soc_bucket,\n    COUNT(*) AS start_count,\n    0 AS end_count\n  FROM charging_processes\n  WHERE car_id = $car_id AND $__timeFilter(start_date)\n  GROUP BY 1\n  UNION ALL\n  SELECT\n    ((FLOOR(end_battery_level / 10) * 10)::int)::text || '%' AS soc_bucket,\n    0 AS start_count,\n    COUNT(*) AS end_count\n  FROM charging_processes\n  WHERE car_id = $car_id AND $__timeFilter(start_date)\n  GROUP BY 1\n) sub\nGROUP BY 1\nORDER BY 1;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
@@ -352,7 +352,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('month', start_date) AS time,\n  SUM(CASE WHEN fast_charger_present = false OR fast_charger_present IS NULL THEN 1 ELSE 0 END) AS \"交流慢充\",\n  SUM(CASE WHEN fast_charger_present = true THEN 1 ELSE 0 END) AS \"直流快充\"\nFROM charging_processes\nWHERE car_id = $car_id AND $__timeFilter(start_date)\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "SELECT\n  date_trunc('month', start_date) AS time,\n  SUM(CASE WHEN fast_charger_brand IS NULL THEN 1 ELSE 0 END) AS \"交流慢充\",\n  SUM(CASE WHEN fast_charger_brand IS NOT NULL THEN 1 ELSE 0 END) AS \"直流快充\"\nFROM charging_processes\nWHERE car_id = $car_id AND $__timeFilter(start_date)\nGROUP BY 1\nORDER BY 1;",
           "refId": "A"
         }
       ],
@@ -399,7 +399,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(a.display_name, CONCAT(ROUND(p.latitude::numeric,4), ',', ROUND(p.longitude::numeric,4))) AS address,\n  COUNT(*) AS charge_count,\n  ROUND(SUM(cp.charge_energy_added)::numeric, 1) AS total_energy,\n  SUM(CASE WHEN cp.fast_charger_present = true THEN 1 ELSE 0 END) AS dc_count,\n  ROUND(AVG(cp.charge_energy_added)::numeric, 1) AS avg_energy\nFROM charging_processes cp\nJOIN positions p ON cp.position_id = p.id\nLEFT JOIN addresses a ON p.address_id = a.id\nWHERE cp.car_id = $car_id AND $__timeFilter(cp.start_date)\nGROUP BY 1\nORDER BY charge_count DESC\nLIMIT 30;",
+          "rawSql": "SELECT\n  COALESCE(a.display_name, CONCAT(ROUND(p.latitude::numeric,4), ',', ROUND(p.longitude::numeric,4))) AS address,\n  COUNT(*) AS charge_count,\n  ROUND(SUM(cp.charge_energy_added)::numeric, 1) AS total_energy,\n  SUM(CASE WHEN cp.fast_charger_brand IS NOT NULL THEN 1 ELSE 0 END) AS dc_count,\n  ROUND(AVG(cp.charge_energy_added)::numeric, 1) AS avg_energy\nFROM charging_processes cp\nJOIN positions p ON cp.position_id = p.id\nLEFT JOIN addresses a ON cp.address_id = a.id\nWHERE cp.car_id = $car_id AND $__timeFilter(cp.start_date)\nGROUP BY 1\nORDER BY charge_count DESC\nLIMIT 30;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
