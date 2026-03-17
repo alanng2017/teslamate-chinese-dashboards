@@ -1,0 +1,534 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "标注与警报",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [
+    {"asDropdown": true, "icon": "external link", "tags": ["tesla"], "title": "车辆信息", "type": "dashboards"},
+    {"asDropdown": true, "icon": "external link", "tags": ["trip"], "title": "行驶", "type": "dashboards"},
+    {"asDropdown": false, "icon": "doc", "tags": [], "targetBlank": true, "title": "中文文档", "type": "link", "url": "https://github.com/wjsall/teslamate-chinese-dashboards"}
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "panels": [],
+      "title": "年度核心指标",
+      "type": "row",
+      "fieldConfig": {"defaults": {}, "overrides": []}
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue"}]},
+          "unit": "lengthkm",
+          "decimals": 0,
+          "displayName": "年度总里程"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ROUND(COALESCE(SUM(distance), 0)::numeric, 0) AS total_km\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM start_date) = $year::int;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue"}]},
+          "unit": "short",
+          "decimals": 0,
+          "displayName": "总行程次数"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS trip_count\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM start_date) = $year::int;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}]},
+          "unit": "kwatth",
+          "decimals": 1,
+          "displayName": "年度总充电量"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ROUND(COALESCE(SUM(charge_energy_added), 0)::numeric, 1) AS total_kwh\nFROM charging_processes\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM start_date) = $year::int;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "orange"}]},
+          "unit": "currencyRMB",
+          "decimals": 2,
+          "displayName": "年度充电费用"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ROUND(COALESCE(SUM(cost), 0)::numeric, 2) AS total_cost\nFROM charging_processes\nWHERE car_id = $car_id\n  AND cost IS NOT NULL\n  AND EXTRACT(YEAR FROM start_date) = $year::int;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "id": 101,
+      "panels": [],
+      "title": "年度亮点",
+      "type": "row",
+      "fieldConfig": {"defaults": {}, "overrides": []}
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "purple"}]},
+          "unit": "lengthkm",
+          "decimals": 1,
+          "displayName": "最远单次行程"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 6},
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ROUND(COALESCE(MAX(distance), 0)::numeric, 1) AS max_km\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM start_date) = $year::int;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red"}]},
+          "unit": "velocitykmh",
+          "decimals": 0,
+          "displayName": "最高时速记录"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 6},
+      "id": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ROUND(COALESCE(MAX(speed_max), 0)::numeric, 0) AS max_speed\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM start_date) = $year::int;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}]},
+          "unit": "watthoursPerKilometer",
+          "decimals": 1,
+          "displayName": "年均能耗"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 6},
+      "id": 7,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM(energy_used), 0) * 1000.0 / NULLIF(SUM(distance), 0)\n  )::numeric, 1) AS avg_wh_km\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM start_date) = $year::int\n  AND energy_used IS NOT NULL\n  AND distance > 0;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue"}]},
+          "unit": "short",
+          "decimals": 0,
+          "displayName": "充电次数"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 6},
+      "id": 8,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS charge_count\nFROM charging_processes\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM start_date) = $year::int;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 10},
+      "id": 102,
+      "panels": [],
+      "title": "月度分布",
+      "type": "row",
+      "fieldConfig": {"defaults": {}, "overrides": []}
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 70},
+          "unit": "lengthkm",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 11},
+      "id": 9,
+      "options": {
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "legend": {"displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "single"},
+        "xTickLabelRotation": -45
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  TO_CHAR(date_trunc('month', start_date), 'MM月') AS month,\n  ROUND(COALESCE(SUM(distance), 0)::numeric, 0) AS \"月度里程\"\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM start_date) = $year::int\nGROUP BY date_trunc('month', start_date), TO_CHAR(date_trunc('month', start_date), 'MM月')\nORDER BY date_trunc('month', start_date);",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "title": "月度里程分布",
+      "type": "barchart"
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2, "fillOpacity": 10},
+          "unit": "currencyRMB",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 11},
+      "id": 10,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "single"}
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  date_trunc('month', start_date) AS time,\n  ROUND(COALESCE(SUM(cost), 0)::numeric, 2) AS \"充电费用\"\nFROM charging_processes\nWHERE car_id = $car_id\n  AND cost IS NOT NULL\n  AND EXTRACT(YEAR FROM start_date) = $year::int\nGROUP BY 1\nORDER BY 1;",
+          "refId": "A"
+        }
+      ],
+      "title": "月度充电费用趋势",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 19},
+      "id": 103,
+      "panels": [],
+      "title": "常去地点 & 常用充电站",
+      "type": "row",
+      "fieldConfig": {"defaults": {}, "overrides": []}
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}, {"color": "red", "value": 80}]},
+          "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "address"}, "properties": [{"id": "displayName", "value": "目的地"}, {"id": "custom.minWidth", "value": 250}]},
+          {"matcher": {"id": "byName", "options": "visit_count"}, "properties": [{"id": "displayName", "value": "到访次数"}]},
+          {"matcher": {"id": "byName", "options": "total_km"}, "properties": [{"id": "displayName", "value": "累计里程"}, {"id": "unit", "value": "lengthkm"}, {"id": "decimals", "value": 0}]}
+        ]
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 20},
+      "id": 11,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false},
+        "showHeader": true,
+        "sortBy": [{"desc": true, "displayName": "到访次数"}]
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  COALESCE(a.display_name, CONCAT(ROUND(p.latitude::numeric,4), ',', ROUND(p.longitude::numeric,4))) AS address,\n  COUNT(*) AS visit_count,\n  ROUND(SUM(d.distance)::numeric, 0) AS total_km\nFROM drives d\nJOIN positions p ON d.end_position_id = p.id\nLEFT JOIN addresses a ON p.address_id = a.id\nWHERE d.car_id = $car_id\n  AND EXTRACT(YEAR FROM d.start_date) = $year::int\nGROUP BY 1\nORDER BY visit_count DESC\nLIMIT 10;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "title": "最常到访地点 TOP10",
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}, {"color": "red", "value": 80}]},
+          "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "address"}, "properties": [{"id": "displayName", "value": "充电站"}, {"id": "custom.minWidth", "value": 250}]},
+          {"matcher": {"id": "byName", "options": "charge_count"}, "properties": [{"id": "displayName", "value": "充电次数"}]},
+          {"matcher": {"id": "byName", "options": "total_kwh"}, "properties": [{"id": "displayName", "value": "总充电量"}, {"id": "unit", "value": "kwatth"}, {"id": "decimals", "value": 1}]}
+        ]
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 20},
+      "id": 12,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false},
+        "showHeader": true,
+        "sortBy": [{"desc": true, "displayName": "充电次数"}]
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  COALESCE(a.display_name, CONCAT(ROUND(p.latitude::numeric,4), ',', ROUND(p.longitude::numeric,4))) AS address,\n  COUNT(*) AS charge_count,\n  ROUND(SUM(cp.charge_energy_added)::numeric, 1) AS total_kwh\nFROM charging_processes cp\nJOIN positions p ON cp.position_id = p.id\nLEFT JOIN addresses a ON p.address_id = a.id\nWHERE cp.car_id = $car_id\n  AND EXTRACT(YEAR FROM cp.start_date) = $year::int\nGROUP BY 1\nORDER BY charge_count DESC\nLIMIT 10;",
+          "refId": "A",
+          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+        }
+      ],
+      "title": "最常使用充电站 TOP10",
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "refresh": "",
+  "schemaVersion": 41,
+  "tags": ["tesla", "trip"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+        "definition": "SELECT\n    id as __value,\n    CASE WHEN COUNT(id) OVER (PARTITION BY name) > 1 AND name IS NOT NULL THEN CONCAT(name, ' - ', RIGHT(vin, 6)) ELSE COALESCE(name, CONCAT('VIN ', vin)) end as __text \nFROM cars\nORDER BY display_priority ASC, name ASC, vin ASC;",
+        "hide": 0,
+        "includeAll": false,
+        "label": "车辆",
+        "name": "car_id",
+        "options": [],
+        "query": "SELECT\n    id as __value,\n    CASE WHEN COUNT(id) OVER (PARTITION BY name) > 1 AND name IS NOT NULL THEN CONCAT(name, ' - ', RIGHT(vin, 6)) ELSE COALESCE(name, CONCAT('VIN ', vin)) end as __text \nFROM cars\nORDER BY display_priority ASC, name ASC, vin ASC;",
+        "refresh": 1,
+        "regex": "",
+        "type": "query",
+        "regexApplyTo": "value"
+      },
+      {
+        "current": {"text": "2025", "value": "2025"},
+        "hide": 0,
+        "includeAll": false,
+        "label": "年份",
+        "name": "year",
+        "options": [
+          {"selected": false, "text": "2022", "value": "2022"},
+          {"selected": false, "text": "2023", "value": "2023"},
+          {"selected": false, "text": "2024", "value": "2024"},
+          {"selected": true, "text": "2025", "value": "2025"},
+          {"selected": false, "text": "2026", "value": "2026"}
+        ],
+        "query": "2022,2023,2024,2025,2026",
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {"from": "now-1y", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "年度驾驶报告",
+  "uid": "annual-summary-cn",
+  "version": 1
+}
