@@ -12,9 +12,12 @@ echo "📦 安装内容："
 echo "  - TeslaMate 后端"
 echo "  - PostgreSQL 数据库"
 echo "  - Grafana + 中文 Dashboard（31个）"
-echo "  - MQTT 自动连接车辆"
+echo "  - MQTT 消息服务"
 echo ""
 echo "⏱️  预计耗时：5-10 分钟"
+echo ""
+echo "📌 说明：TeslaMate 使用 Tesla Fleet API（OAuth）授权，"
+echo "         安装完成后在 TeslaMate 界面中完成车辆绑定。"
 echo ""
 
 # 检查 Docker 和 Docker Compose
@@ -43,30 +46,20 @@ cd "$INSTALL_DIR"
 echo "📁 工作目录: $INSTALL_DIR"
 echo ""
 
-# 获取 MQTT 令牌（必需）
-echo "🔐 需要配置 Tesla 账号信息"
-echo ""
-read -p "Tesla 账号邮箱: " TESLA_EMAIL
-read -sp "Tesla 密码: " TESLA_PASSWORD
-echo ""
-read -p "MQTT 令牌 (如不知道留空): " MQTT_TOKEN
-
 # 生成 docker-compose.yml
 echo "📝 生成配置文件..."
 
 cat > docker-compose.yml << 'EOF'
-version: "3"
-
 services:
   teslamate:
     image: teslamate/teslamate:latest
     restart: always
-    stop_grace_period: 1m
+    cap_drop:
+      - all
     ports:
       - 4000:4000
     volumes:
       - ./import:/opt/app/import
-      - ./teslamate-data:/var/lib/teslamate
     environment:
       - ENCRYPTION_KEY=INSERT_RANDOM_KEY_HERE
       - DATABASE_USER=teslamate
@@ -74,14 +67,16 @@ services:
       - DATABASE_NAME=teslamate
       - DATABASE_HOST=database
       - MQTT_HOST=mosquitto
-      - MQTT_USERNAME=teslamate
-      - MQTT_PASSWORD=secret
+      # 中国大陆用户：请取消下方两行注释
+      # - TESLA_API_HOST=https://owner-api.vn.cloud.tesla.cn
+      # - TESLA_WSS_HOST=wss://streaming.vn.cloud.tesla.cn
+      - TZ=Asia/Shanghai
 
   database:
-    image: postgres:15
+    image: postgres:18-trixie
     restart: always
     volumes:
-      - ./db-data:/var/lib/postgresql/data
+      - teslamate-db:/var/lib/postgresql
     environment:
       - POSTGRES_USER=teslamate
       - POSTGRES_PASSWORD=password
@@ -93,7 +88,7 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - ./grafana-data:/var/lib/grafana
+      - teslamate-grafana-data:/var/lib/grafana
     environment:
       - DATABASE_USER=teslamate
       - DATABASE_PASS=password
@@ -101,29 +96,21 @@ services:
       - DATABASE_HOST=database
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_DEFAULT_LANGUAGE=zh-Hans
-    depends_on:
-      - teslamate
 
   mosquitto:
     image: eclipse-mosquitto:2
     restart: always
-    ports:
-      - 1883:1883
+    command: mosquitto -c /mosquitto-no-auth.conf
     volumes:
-      - ./mosquitto-config:/mosquitto/config
-      - ./mosquitto-data:/mosquitto/data
-EOF
+      - mosquitto-conf:/mosquitto/config
+      - mosquitto-data:/mosquitto/data
 
-# 创建 mosquitto 配置
-mkdir -p mosquitto-config
-cat > mosquitto-config/mosquitto.conf << 'EOF'
-listener 1883
-allow_anonymous false
-password_file /mosquitto/config/passwd
+volumes:
+  teslamate-db:
+  teslamate-grafana-data:
+  mosquitto-conf:
+  mosquitto-data:
 EOF
-
-# 生成 mosquitto 密码文件
-touch mosquitto-config/passwd
 
 # 生成随机加密密钥
 ENCRYPTION_KEY=$(openssl rand -hex 32)
@@ -157,20 +144,23 @@ echo "  - Grafana:     http://localhost:3000"
 echo ""
 echo "🔐 Grafana 登录信息："
 echo "  - 用户名: admin"
-echo "  - 密码: admin"
+echo "  - 密码: admin（建议登录后修改）"
 echo ""
 echo "📝 下一步："
 echo "  1. 访问 TeslaMate: http://localhost:4000"
-echo "  2. 登录 Tesla 账号"
+echo "  2. 按照页面引导完成 Tesla 账号授权（OAuth）"
 echo "  3. 车辆会自动开始同步数据"
 echo "  4. 几分钟后访问 Grafana 查看中文 Dashboard"
 echo ""
 echo "📚 相关文档："
+echo "  - 新手向导:     QUICKSTART.md"
 echo "  - 场景速查手册: SCENE_GUIDE.md"
 echo "  - 数据指标手册: METRICS_GUIDE.md"
 echo "  - 功能地图:     DASHBOARD_MAP.md"
+echo "  - 故障排查:     TROUBLESHOOTING.md"
 echo ""
 echo "🆘 遇到问题？"
 echo "  查看日志: docker compose logs -f"
 echo "  重启服务: docker compose restart"
+echo "  故障排查: cat TROUBLESHOOTING.md"
 echo ""

@@ -64,11 +64,13 @@
 
 | 文档 | 说明 | 适合人群 |
 |------|------|----------|
+| **[新手向导](QUICKSTART.md)** | 从零开始安装，含 FAQ | 完全新手 |
+| **[功能地图](DASHBOARD_MAP.md)** | 31个 Dashboard 分类导航 | 新用户 |
 | **[场景速查手册](SCENE_GUIDE.md)** | 什么时候看什么 Dashboard | 所有用户 |
 | **[数据指标手册](METRICS_GUIDE.md)** | 指标解释、正常范围、异常处理 | 进阶用户 |
-| **[功能地图](DASHBOARD_MAP.md)** | 31个 Dashboard 分类导航 | 新用户 |
+| **[故障排查手册](TROUBLESHOOTING.md)** | 遇到问题按症状查解决方案 | 遇到问题时 |
 
-**新手建议**：先看「功能地图」→ 再看「场景速查手册」→ 最后参考「数据指标手册」
+**新手建议**：先看「新手向导」→「功能地图」→「场景速查手册」→「数据指标手册」
 
 ## 📁 包含的 Dashboard (31个)
 
@@ -452,6 +454,12 @@ docker compose restart grafana
 ```
 teslamate-chinese-dashboards/
 ├── README.md                    # 项目说明
+├── QUICKSTART.md               # 新手向导（从零开始）
+├── TROUBLESHOOTING.md          # 故障排查手册
+├── SCENE_GUIDE.md              # 场景速查手册
+├── METRICS_GUIDE.md            # 数据指标手册
+├── DASHBOARD_MAP.md            # Dashboard 功能地图
+├── CONTRIBUTING.md             # 贡献指南
 ├── LICENSE                      # MIT许可证
 ├── Dockerfile                   # Docker镜像构建
 ├── simple-deploy.sh            # 一键安装脚本
@@ -463,11 +471,13 @@ teslamate-chinese-dashboards/
 │       │   ├── charging-stats.json
 │       │   └── ... (共31个)
 │       └── internal/           # 3个内部详情页 → 挂载到 /dashboards_internal/
+│           ├── home.json
 │           ├── drive-details.json
 │           └── charge-details.json
 └── .github/
     └── workflows/
-        └── ghcr-build.yml      # GitHub Actions 自动构建
+        ├── ghcr-build.yml      # GitHub Actions 自动构建
+        └── update-base-image.yml  # 基础镜像自动更新
 ```
 
 ## 📦 镜像信息
@@ -481,11 +491,40 @@ teslamate-chinese-dashboards/
 
 ## ⚙️ 环境变量
 
+### Grafana 变量
+
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `GF_DEFAULT_LANGUAGE` | Grafana默认语言 | `zh-Hans` |
-| `GF_SECURITY_ADMIN_PASSWORD` | Grafana管理员密码 | `admin` |
-| `DATABASE_PASSWORD` | 数据库密码 | `password` |
+| `GF_DEFAULT_LANGUAGE` | Grafana 界面语言 | `zh-Hans` |
+| `GF_SECURITY_ADMIN_PASSWORD` | Grafana 管理员密码 | `admin` |
+| `DATABASE_USER` | 数据库用户名 | `teslamate` |
+| `DATABASE_PASS` | 数据库密码 | `password` |
+| `DATABASE_NAME` | 数据库名称 | `teslamate` |
+| `DATABASE_HOST` | 数据库主机名 | `database` |
+
+### TeslaMate 重要变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `ENCRYPTION_KEY` | Tesla Token 加密密钥（**必须设置且不能更改**） | 无 |
+| `TZ` | 时区设置（中国用户建议设置） | 系统默认 |
+| `TESLA_API_HOST` | Tesla API 地址（**中国大陆专用**） | 见下方 |
+| `TESLA_WSS_HOST` | Tesla 流式数据地址（**中国大陆专用**） | 见下方 |
+
+### 🇨🇳 中国大陆用户专项配置
+
+中国大陆用户需要添加以下环境变量到 `teslamate` 服务，否则无法连接 Tesla 服务器：
+
+```yaml
+services:
+  teslamate:
+    environment:
+      - TZ=Asia/Shanghai
+      - TESLA_API_HOST=https://owner-api.vn.cloud.tesla.cn
+      - TESLA_WSS_HOST=wss://streaming.vn.cloud.tesla.cn
+```
+
+> 📖 参考：[TeslaMate 官方文档 - 环境变量](https://docs.teslamate.org/docs/configuration/environment_variables)
 
 ## 🛠️ 系统要求
 
