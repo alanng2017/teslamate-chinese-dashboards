@@ -236,43 +236,73 @@
       "id": 32,
       "links": [],
       "options": {
+        "mapping": "manual",
+        "series": [
+          {
+            "frame": {
+              "matcher": {
+                "id": "byIndex",
+                "options": 0
+              }
+            },
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "电量 [%]"
+              }
+            },
+            "y": {
+              "matcher": {
+                "id": "byName",
+                "options": "功率 [kW]"
+              }
+            },
+            "color": {
+              "matcher": {
+                "id": "byName",
+                "options": "功率 [kW]"
+              }
+            }
+          },
+          {
+            "frame": {
+              "matcher": {
+                "id": "byIndex",
+                "options": 1
+              }
+            },
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "B - 电量 [%]"
+              }
+            },
+            "y": {
+              "matcher": {
+                "id": "byName",
+                "options": "B - 平均功率 [kW]"
+              }
+            },
+            "color": {
+              "matcher": {
+                "id": "byName",
+                "options": "B - 平均功率 [kW]"
+              }
+            }
+          }
+        ],
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": false
         },
-        "series": [
-          {
-            "pointColor": {
-              "field": "功率 [kW]"
-            },
-            "pointSize": {
-              "fixed": 2,
-              "max": 100,
-              "min": 1
-            },
-            "x": "电量 [%]",
-            "y": "功率 [kW]"
-          },
-          {
-            "pointColor": {
-              "field": "B - 平均功率 [kW]"
-            },
-            "pointSize": {
-              "fixed": 12,
-              "max": 100,
-              "min": 1
-            },
-            "x": "B - 电量 [%]",
-            "y": "B - 平均功率 [kW]"
-          }
-        ],
         "tooltip": {
-          "mode": "multi",
+          "hideZeros": false,
+          "maxHeight": 600,
+          "mode": "single",
           "sort": "none"
-        },
-        "mapping": "manual"
+        }
       },
       "pluginVersion": "12.0.0",
       "targets": [
