@@ -182,7 +182,7 @@
               },
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -251,7 +251,7 @@
               },
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -336,7 +336,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               },
               {
                 "id": "decimals",

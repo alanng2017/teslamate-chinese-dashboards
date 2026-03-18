@@ -342,7 +342,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               }
             ]
           },
@@ -477,7 +477,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               }
             ]
           },

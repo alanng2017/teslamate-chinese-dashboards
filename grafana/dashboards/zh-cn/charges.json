@@ -141,7 +141,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -263,7 +263,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -510,7 +510,7 @@
               }
             ]
           },
-          "unit": "m"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -749,7 +749,7 @@
               },
               {
                 "id": "unit",
-                "value": "m"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -914,7 +914,7 @@
               },
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               }
             ]
           },
@@ -1003,7 +1003,7 @@
               },
               {
                 "id": "unit",
-                "value": "velocitykmh"
+                "value": "none"
               },
               {
                 "id": "custom.minWidth",

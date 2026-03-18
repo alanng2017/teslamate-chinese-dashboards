@@ -424,7 +424,7 @@
               },
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               },
               {
                 "id": "displayName",
@@ -448,7 +448,7 @@
               },
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               },
               {
                 "id": "displayName",

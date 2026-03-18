@@ -347,7 +347,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               }
             ]
           },
@@ -359,7 +359,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               }
             ]
           },

@@ -155,7 +155,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -256,7 +256,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -369,7 +369,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -606,7 +606,7 @@
               }
             ]
           },
-          "unit": "kwatth",
+          "unit": "none",
           "min": 0
         },
         "overrides": [
@@ -732,7 +732,7 @@
           },
           "decimals": 2,
           "mappings": [],
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -3161,7 +3161,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               },
               {
                 "id": "custom.align",
@@ -3181,7 +3181,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               },
               {
                 "id": "decimals",

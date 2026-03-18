@@ -244,7 +244,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -268,7 +268,7 @@
               },
               {
                 "id": "unit",
-                "value": "m"
+                "value": "none"
               },
               {
                 "id": "custom.width",

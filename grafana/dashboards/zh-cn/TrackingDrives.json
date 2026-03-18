@@ -960,7 +960,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               },
               {
                 "id": "displayName",
@@ -1008,7 +1008,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "velocitykmh"
+                "value": "none"
               },
               {
                 "id": "displayName",
@@ -1165,7 +1165,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {

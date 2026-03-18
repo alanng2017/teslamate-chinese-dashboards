@@ -237,7 +237,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               },
               {
                 "id": "custom.minWidth",
@@ -257,7 +257,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               },
               {
                 "id": "decimals",

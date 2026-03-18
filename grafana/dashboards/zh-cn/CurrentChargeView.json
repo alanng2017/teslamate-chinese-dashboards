@@ -320,7 +320,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -517,7 +517,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -1539,7 +1539,7 @@
               }
             ]
           },
-          "unit": "lengthkm"
+          "unit": "none"
         },
         "overrides": [
           {

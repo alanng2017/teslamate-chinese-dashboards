@@ -201,7 +201,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -1350,7 +1350,7 @@
           },
           "decimals": 2,
           "mappings": [],
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -1518,7 +1518,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               }
             ]
           },
@@ -2582,7 +2582,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               },
               {
                 "id": "decimals",

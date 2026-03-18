@@ -496,7 +496,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -610,7 +610,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -724,7 +724,7 @@
               }
             ]
           },
-          "unit": "m"
+          "unit": "none"
         },
         "overrides": [
           {

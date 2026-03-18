@@ -176,7 +176,7 @@
               },
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -286,7 +286,7 @@
               },
               {
                 "id": "unit",
-                "value": "velocitykmh"
+                "value": "none"
               }
             ]
           },
@@ -318,7 +318,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "short"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -382,7 +382,7 @@
               },
               {
                 "id": "unit",
-                "value": "velocitykmh"
+                "value": "none"
               },
               {
                 "id": "custom.minWidth",
@@ -510,7 +510,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               }
             ]
           },

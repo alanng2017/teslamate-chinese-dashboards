@@ -99,7 +99,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -229,7 +229,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               }
             ]
           },
@@ -605,7 +605,7 @@
           },
           "decimals": 2,
           "mappings": [],
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -970,7 +970,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               }
             ]
           },
@@ -986,7 +986,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               }
             ]
           },
@@ -1551,7 +1551,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -1752,7 +1752,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               }
             ]
           },

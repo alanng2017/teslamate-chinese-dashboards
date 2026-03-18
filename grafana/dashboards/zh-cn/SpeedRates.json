@@ -310,7 +310,7 @@
               },
               {
                 "id": "unit",
-                "value": "velocitykmh"
+                "value": "none"
               },
               {
                 "id": "custom.width",
@@ -972,7 +972,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {

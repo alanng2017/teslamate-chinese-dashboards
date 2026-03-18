@@ -615,7 +615,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "velocitykmh"
+                "value": "none"
               },
               {
                 "id": "displayName",
@@ -756,7 +756,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "velocitykmh"
+                "value": "none"
               },
               {
                 "id": "displayName",
@@ -1379,7 +1379,7 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -1733,7 +1733,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -1826,7 +1826,7 @@
               },
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -1902,7 +1902,7 @@
               },
               {
                 "id": "unit",
-                "value": "m"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -2228,7 +2228,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -2341,7 +2341,7 @@
               },
               {
                 "id": "unit",
-                "value": "m"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -2449,7 +2449,7 @@
               },
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -2827,7 +2827,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               }
             ]
           },
@@ -2995,7 +2995,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {

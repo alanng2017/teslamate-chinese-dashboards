@@ -1181,7 +1181,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "lengthkm"
+                "value": "none"
               }
             ]
           },
@@ -1588,7 +1588,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -1683,7 +1683,7 @@
               },
               {
                 "id": "unit",
-                "value": "kwatth"
+                "value": "none"
               }
             ]
           },
