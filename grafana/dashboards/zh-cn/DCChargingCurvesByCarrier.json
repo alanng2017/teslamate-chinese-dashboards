@@ -262,6 +262,11 @@
                 "id": "byName",
                 "options": "功率 [kW]"
               }
+            },
+            "pointSize": {
+              "fixed": 2,
+              "min": 1,
+              "max": 100
             }
           },
           {
@@ -288,6 +293,11 @@
                 "id": "byName",
                 "options": "B - 平均功率 [kW]"
               }
+            },
+            "pointSize": {
+              "fixed": 12,
+              "min": 1,
+              "max": 100
             }
           }
         ],
