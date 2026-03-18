@@ -350,7 +350,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND((SUM(cp.cost) / NULLIF(SUM(d.distance), 0))::numeric, 4) AS \"每公里电费(元/km)\"\nFROM cars c\nLEFT JOIN drives d ON d.car_id = c.id AND d.end_date IS NOT NULL AND $__timeFilter(d.start_date)\nLEFT JOIN charging_processes cp ON cp.car_id = c.id AND cp.cost IS NOT NULL AND $__timeFilter(cp.start_date)\nGROUP BY c.id, c.name, c.vin\nHAVING SUM(d.distance) > 0\nORDER BY \"每公里电费(元/km)\" ASC NULLS LAST;",
+          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND((COALESCE(cp_stats.total_cost, 0) / NULLIF(d_stats.total_km, 0))::numeric, 4) AS \"每公里电费(元/km)\"\nFROM cars c\nLEFT JOIN (\n  SELECT car_id, SUM(distance) AS total_km\n  FROM drives\n  WHERE end_date IS NOT NULL AND $__timeFilter(start_date)\n  GROUP BY car_id\n) d_stats ON d_stats.car_id = c.id\nLEFT JOIN (\n  SELECT car_id, SUM(cost) AS total_cost\n  FROM charging_processes\n  WHERE cost IS NOT NULL AND $__timeFilter(start_date)\n  GROUP BY car_id\n) cp_stats ON cp_stats.car_id = c.id\nWHERE d_stats.total_km > 0\nORDER BY \"每公里电费(元/km)\" ASC NULLS LAST;",
           "refId": "A",
           "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
         }
