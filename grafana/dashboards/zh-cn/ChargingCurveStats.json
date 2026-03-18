@@ -766,7 +766,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "min": 0
         },
         "overrides": [
           {

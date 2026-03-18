@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -16,163 +19,363 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "links": [
-    {"asDropdown": true, "icon": "external link", "tags": ["tesla"], "title": "车辆信息", "type": "dashboards"},
-    {"asDropdown": true, "icon": "external link", "tags": ["trip"], "title": "行驶", "type": "dashboards"},
-    {"asDropdown": false, "icon": "doc", "tags": [], "targetBlank": true, "title": "中文文档", "type": "link", "url": "https://github.com/wjsall/teslamate-chinese-dashboards"}
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "tags": [
+        "tesla"
+      ],
+      "title": "车辆信息",
+      "type": "dashboards"
+    },
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "tags": [
+        "trip"
+      ],
+      "title": "行驶",
+      "type": "dashboards"
+    },
+    {
+      "asDropdown": false,
+      "icon": "doc",
+      "tags": [],
+      "targetBlank": true,
+      "title": "中文文档",
+      "type": "link",
+      "url": "https://github.com/wjsall/teslamate-chinese-dashboards"
+    }
   ],
   "panels": [
     {
       "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 100,
       "panels": [],
       "title": "工作日 vs 周末",
       "type": "row",
-      "fieldConfig": {"defaults": {}, "overrides": []}
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
     },
     {
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "TeslaMate"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [{"color": "blue"}]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue"
+              }
+            ]
+          },
           "unit": "none",
           "decimals": 1,
           "displayName": "工作日平均里程/天(km)"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "id": 1,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "auto"
       },
       "pluginVersion": "11.6.1",
       "targets": [
         {
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "TeslaMate"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT\n  ROUND((SUM(distance) / NULLIF(COUNT(DISTINCT DATE(start_date)), 0))::numeric, 1) AS avg_km\nFROM drives\nWHERE car_id = $car_id\n  AND $__timeFilter(start_date)\n  AND EXTRACT(DOW FROM start_date) BETWEEN 1 AND 5;",
           "refId": "A",
-          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
       "title": "工作日平均里程/天(km)",
       "type": "stat"
     },
     {
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "TeslaMate"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
           "unit": "none",
           "decimals": 1,
           "displayName": "周末平均里程/天(km)"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
       "id": 2,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "auto"
       },
       "pluginVersion": "11.6.1",
       "targets": [
         {
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "TeslaMate"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT\n  ROUND((SUM(distance) / NULLIF(COUNT(DISTINCT DATE(start_date)), 0))::numeric, 1) AS avg_km\nFROM drives\nWHERE car_id = $car_id\n  AND $__timeFilter(start_date)\n  AND EXTRACT(DOW FROM start_date) IN (0, 6);",
           "refId": "A",
-          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
       "title": "周末平均里程/天(km)",
       "type": "stat"
     },
     {
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "TeslaMate"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [{"color": "blue"}]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue"
+              }
+            ]
+          },
           "unit": "none",
           "decimals": 1,
           "displayName": "工作日平均能耗(Wh/km)"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
       "id": 3,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "auto"
       },
       "pluginVersion": "11.6.1",
       "targets": [
         {
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "TeslaMate"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n    * 1000\n  )::numeric, 1) AS wh_per_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND EXTRACT(DOW FROM d.start_date) BETWEEN 1 AND 5\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
           "refId": "A",
-          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
       "title": "工作日平均能耗(Wh/km)",
       "type": "stat"
     },
     {
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "TeslaMate"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
           "unit": "none",
           "decimals": 1,
           "displayName": "周末平均能耗(Wh/km)"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
       "id": 4,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "auto"
       },
       "pluginVersion": "11.6.1",
       "targets": [
         {
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "TeslaMate"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n    * 1000\n  )::numeric, 1) AS wh_per_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND EXTRACT(DOW FROM d.start_date) IN (0, 6)\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
           "refId": "A",
-          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
       "title": "周末平均能耗(Wh/km)",
@@ -180,69 +383,138 @@
     },
     {
       "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "id": 101,
       "panels": [],
       "title": "出行时段分析",
       "type": "row",
-      "fieldConfig": {"defaults": {}, "overrides": []}
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
     },
     {
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "TeslaMate"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"fillOpacity": 70},
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 70
+          },
           "unit": "none",
-          "displayName": "行程次数"
+          "displayName": "行程次数",
+          "min": 0
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
       "id": 5,
       "options": {
         "barWidth": 0.7,
         "groupWidth": 0.7,
-        "legend": {"displayMode": "list", "placement": "bottom"},
-        "tooltip": {"mode": "single"},
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        },
         "xTickLabelRotation": 0
       },
       "pluginVersion": "11.6.1",
       "targets": [
         {
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "TeslaMate"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT\n  TO_CHAR(start_date, 'HH24') || ':00' AS hour,\n  COUNT(*) AS trip_count\nFROM drives\nWHERE car_id = $car_id AND $__timeFilter(start_date)\nGROUP BY 1\nORDER BY 1;",
           "refId": "A",
-          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
       "title": "出行时段分布（24小时）",
       "type": "barchart"
     },
     {
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "TeslaMate"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"lineWidth": 2, "fillOpacity": 10},
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
           "unit": "none",
           "decimals": 1
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
       "id": 6,
       "options": {
-        "legend": {"calcs": ["mean"], "displayMode": "table", "placement": "bottom"},
-        "tooltip": {"mode": "single"}
+        "legend": {
+          "calcs": [
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
       "pluginVersion": "11.6.1",
       "targets": [
         {
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "TeslaMate"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -255,47 +527,214 @@
     },
     {
       "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14},
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
       "id": 102,
       "panels": [],
       "title": "高速长途行程",
       "type": "row",
-      "fieldConfig": {"defaults": {}, "overrides": []}
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
     },
     {
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "TeslaMate"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green"}, {"color": "red", "value": 80}]},
-          "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
         },
         "overrides": [
-          {"matcher": {"id": "byName", "options": "start_date"}, "properties": [{"id": "displayName", "value": "出发时间"}, {"id": "unit", "value": "dateTimeAsLocal"}]},
-          {"matcher": {"id": "byName", "options": "distance"}, "properties": [{"id": "displayName", "value": "里程(km)"}, {"id": "unit", "value": "none"}, {"id": "decimals", "value": 1}]},
-          {"matcher": {"id": "byName", "options": "duration_min"}, "properties": [{"id": "displayName", "value": "时长(分钟)"}, {"id": "unit", "value": "none"}]},
-          {"matcher": {"id": "byName", "options": "speed_max"}, "properties": [{"id": "displayName", "value": "最高时速(km/h)"}, {"id": "unit", "value": "none"}, {"id": "decimals", "value": 0}]},
-          {"matcher": {"id": "byName", "options": "energy_used"}, "properties": [{"id": "displayName", "value": "耗电(kWh)"}, {"id": "unit", "value": "none"}, {"id": "decimals", "value": 2}]},
-          {"matcher": {"id": "byName", "options": "outside_temp_avg"}, "properties": [{"id": "displayName", "value": "均温"}, {"id": "unit", "value": "celsius"}, {"id": "decimals", "value": 1}]}
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "start_date"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "出发时间"
+              },
+              {
+                "id": "unit",
+                "value": "dateTimeAsLocal"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "distance"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "里程(km)"
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration_min"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "时长(分钟)"
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "speed_max"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "最高时速(km/h)"
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "energy_used"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "耗电(kWh)"
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "outside_temp_avg"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "均温"
+              },
+              {
+                "id": "unit",
+                "value": "celsius"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          }
         ]
       },
-      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 15},
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
       "id": 7,
       "options": {
         "cellHeight": "sm",
-        "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false},
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
         "showHeader": true
       },
       "pluginVersion": "11.6.1",
       "targets": [
         {
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "TeslaMate"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT\n  d.start_date,\n  ROUND(d.distance::numeric, 1) AS distance,\n  d.duration_min,\n  ROUND(d.speed_max::numeric, 0) AS speed_max,\n  ROUND(((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency / 1000.0)::numeric, 2) AS energy_used,\n  ROUND(d.outside_temp_avg::numeric, 1) AS outside_temp_avg\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND d.distance >= 100\n  AND d.speed_max >= 100\nORDER BY d.distance DESC\nLIMIT 50;",
           "refId": "A",
-          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
       "title": "高速长途行程列表（里程≥100km 且 最高时速≥100km/h）",
@@ -303,56 +742,123 @@
     },
     {
       "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 25},
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
       "id": 103,
       "panels": [],
       "title": "温度与能耗关系",
       "type": "row",
-      "fieldConfig": {"defaults": {}, "overrides": []}
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
     },
     {
-      "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "TeslaMate"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"pointSize": {"fixed": 5}},
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "pointSize": {
+              "fixed": 5
+            }
+          },
           "unit": "none",
           "decimals": 1
         },
         "overrides": [
           {
-            "matcher": {"id": "byName", "options": "outside_temp"},
+            "matcher": {
+              "id": "byName",
+              "options": "outside_temp"
+            },
             "properties": [
-              {"id": "custom.axisLabel", "value": "室外温度(°C)"}
+              {
+                "id": "custom.axisLabel",
+                "value": "室外温度(°C)"
+              }
             ]
           },
           {
-            "matcher": {"id": "byName", "options": "能耗(Wh/km)"},
+            "matcher": {
+              "id": "byName",
+              "options": "能耗(Wh/km)"
+            },
             "properties": [
-              {"id": "custom.axisLabel", "value": "能耗(Wh/km)"}
+              {
+                "id": "custom.axisLabel",
+                "value": "能耗(Wh/km)"
+              }
             ]
           }
         ]
       },
-      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 26},
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
       "id": 8,
       "description": "横轴：室外温度(°C)；纵轴：每公里能耗(Wh/km)。低温时能耗明显升高，反映冬季电池效率下降。仅统计行程距离 > 5km 的记录。",
       "options": {
-        "dims": {"x": "outside_temp", "exclude": []},
-        "legend": {"displayMode": "list", "placement": "bottom"},
-        "series": [{"pointColor": {"fixed": "#5794F2"}}],
-        "tooltip": {"mode": "single"}
+        "dims": {
+          "x": "outside_temp",
+          "exclude": []
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "series": [
+          {
+            "pointColor": {
+              "fixed": "#5794F2"
+            }
+          }
+        ],
+        "tooltip": {
+          "mode": "single"
+        }
       },
       "pluginVersion": "11.6.1",
       "targets": [
         {
-          "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "TeslaMate"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT\n  ROUND(d.outside_temp_avg::numeric, 0) AS outside_temp,\n  ROUND(((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency / NULLIF(d.distance, 0) * 1000)::numeric, 1) AS \"能耗(Wh/km)\"\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND d.outside_temp_avg IS NOT NULL\n  AND d.distance > 5\n  AND d.start_ideal_range_km > d.end_ideal_range_km\nORDER BY d.outside_temp_avg;",
           "refId": "A",
-          "sql": {"columns": [{"parameters": [], "type": "function"}], "groupBy": [{"property": {"type": "string"}, "type": "groupBy"}], "limit": 50}
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
         }
       ],
       "title": "温度 vs 能耗散点图（越低温 能耗越高）",
@@ -362,12 +868,18 @@
   "preload": false,
   "refresh": "",
   "schemaVersion": 41,
-  "tags": ["tesla", "trip"],
+  "tags": [
+    "tesla",
+    "trip"
+  ],
   "templating": {
     "list": [
       {
         "current": {},
-        "datasource": {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"},
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "TeslaMate"
+        },
         "definition": "SELECT\n    id as __value,\n    CASE WHEN COUNT(id) OVER (PARTITION BY name) > 1 AND name IS NOT NULL THEN CONCAT(name, ' - ', RIGHT(vin, 6)) ELSE COALESCE(name, CONCAT('VIN ', vin)) end as __text \nFROM cars\nORDER BY display_priority ASC, name ASC, vin ASC;",
         "hide": 0,
         "includeAll": false,
@@ -382,7 +894,10 @@
       }
     ]
   },
-  "time": {"from": "now-90d", "to": "now"},
+  "time": {
+    "from": "now-90d",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "",
   "title": "出行规律分析",

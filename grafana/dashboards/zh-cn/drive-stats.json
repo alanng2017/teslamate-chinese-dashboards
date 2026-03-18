@@ -1144,7 +1144,8 @@
                 "color": "super-light-green"
               }
             ]
-          }
+          },
+          "min": 0
         },
         "overrides": [
           {

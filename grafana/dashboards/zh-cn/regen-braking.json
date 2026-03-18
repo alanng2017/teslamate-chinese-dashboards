@@ -1005,7 +1005,8 @@
             ]
           },
           "unit": "none",
-          "decimals": 1
+          "decimals": 1,
+          "min": 0
         },
         "overrides": []
       },

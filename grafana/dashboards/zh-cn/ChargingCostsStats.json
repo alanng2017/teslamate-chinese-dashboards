@@ -606,7 +606,8 @@
               }
             ]
           },
-          "unit": "kwatth"
+          "unit": "kwatth",
+          "min": 0
         },
         "overrides": [
           {
