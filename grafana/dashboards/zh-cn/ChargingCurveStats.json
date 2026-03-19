@@ -240,7 +240,6 @@
         "series": [
           {
             "pointColor": {
-              "field": "功率 [kW]",
               "fixed": "super-light-yellow"
             },
             "pointSize": {
@@ -248,29 +247,41 @@
               "max": 100,
               "min": 1
             },
-            "x": "电量 [%]",
-            "y": "功率 [kW]"
+            "x": {
+              "matcher": { "id": "byName", "options": "电量 [%]" },
+              "frame": { "matcher": { "id": "byIndex", "options": 0 } }
+            },
+            "y": {
+              "matcher": { "id": "byName", "options": "功率 [kW]" },
+              "frame": { "matcher": { "id": "byIndex", "options": 0 } }
+            }
           },
           {
             "pointColor": {
-              "field": "B - 电量 [%]"
+              "fixed": "blue"
             },
             "pointSize": {
               "fixed": 12,
               "max": 100,
               "min": 1
             },
-            "x": "B - 电量 [%]",
-            "y": "B - 平均功率 [kW]"
+            "x": {
+              "matcher": { "id": "byName", "options": "B - 电量 [%]" },
+              "frame": { "matcher": { "id": "byIndex", "options": 1 } }
+            },
+            "y": {
+              "matcher": { "id": "byName", "options": "B - 平均功率 [kW]" },
+              "frame": { "matcher": { "id": "byIndex", "options": 1 } }
+            }
           }
         ],
-        "seriesMapping": "manual",
+        "mapping": "manual",
         "tooltip": {
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "7.5.11",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "",
@@ -489,36 +500,48 @@
         "series": [
           {
             "pointColor": {
-              "field": "功率 [kW]"
+              "fixed": "super-light-yellow"
             },
             "pointSize": {
               "fixed": 2,
               "max": 100,
               "min": 1
             },
-            "x": "电量 [%]",
-            "y": "功率 [kW]"
+            "x": {
+              "matcher": { "id": "byName", "options": "电量 [%]" },
+              "frame": { "matcher": { "id": "byIndex", "options": 0 } }
+            },
+            "y": {
+              "matcher": { "id": "byName", "options": "功率 [kW]" },
+              "frame": { "matcher": { "id": "byIndex", "options": 0 } }
+            }
           },
           {
             "pointColor": {
-              "field": "B - 平均功率 [kW]"
+              "fixed": "blue"
             },
             "pointSize": {
               "fixed": 10,
               "max": 100,
               "min": 1
             },
-            "x": "B - 电量 [%]",
-            "y": "B - 平均功率 [kW]"
+            "x": {
+              "matcher": { "id": "byName", "options": "B - 电量 [%]" },
+              "frame": { "matcher": { "id": "byIndex", "options": 1 } }
+            },
+            "y": {
+              "matcher": { "id": "byName", "options": "B - 平均功率 [kW]" },
+              "frame": { "matcher": { "id": "byIndex", "options": 1 } }
+            }
           }
         ],
-        "seriesMapping": "manual",
+        "mapping": "manual",
         "tooltip": {
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "7.5.11",
+      "pluginVersion": "12.0.0",
       "targets": [
         {
           "alias": "",
