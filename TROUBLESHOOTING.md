@@ -305,6 +305,37 @@ OpenStreetMap 地图服务在国内可能受限，需要代理。
 
 ---
 
+### ❌ 行程地址不显示（显示为空或仅有坐标）
+
+**症状**：行程列表中出发地、目的地显示为空，或仪表盘中地点名称无法正确显示
+
+**原因：Nominatim 地址解析服务在国内无法访问**
+
+TeslaMate 使用 [Nominatim](https://nominatim.openstreetmap.org)（OpenStreetMap 地理编码服务）将 GPS 坐标转换为可读地址。该服务在中国大陆网络环境下通常无法直连，导致地址字段始终为空。
+
+> 注意：这与「地图不显示」是两个独立问题。地图显示的是瓦片图层，地址显示依赖 Nominatim API 查询，二者需要分别解决。
+
+**解决：配置 Nominatim 代理**
+
+TeslaMate 现已原生支持通过 `NOMINATIM_PROXY` 环境变量为地址解析配置代理，编辑 `docker-compose.yml`，在 `teslamate` 服务的 environment 中添加：
+
+```yaml
+services:
+  teslamate:
+    environment:
+      # ... 其他配置 ...
+      - NOMINATIM_PROXY=http://代理IP:端口
+```
+
+配置后重启 TeslaMate：
+```bash
+docker compose restart teslamate
+```
+
+> **提示**：填写能访问公网的 HTTP 代理地址（如本地 Clash/V2Ray 的局域网监听地址）。配置后历史行程的地址也会在下次处理时自动补全。
+
+---
+
 ## 🌐 网络问题
 
 ### ❌ 国内无法访问 ghcr.io 镜像
