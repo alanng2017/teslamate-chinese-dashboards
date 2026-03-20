@@ -11,6 +11,10 @@ ENV GF_DEFAULT_LANGUAGE=zh-Hans
 ENV GF_USERS_DEFAULT_LANGUAGE=zh-Hans
 ENV GF_USERS_DEFAULT_LOCALE=zh-Hans
 
+# 数据库连接默认值（用户未设置时自动生效，兼容方法四只替换镜像的场景）
+ENV DATABASE_PORT=5432
+ENV DATABASE_SSL_MODE=disable
+
 # 清除基础镜像自带的所有数据源配置（避免 TeslaMate.yml 等旧文件与新配置同时加载导致 ×2 报错）
 # 再写入唯一的数据源配置文件
 # 同时覆盖 Dashboard 路径配置（/dashboards 和 /dashboards_internal）
