@@ -10,7 +10,7 @@
 TeslaMate 是一个**开源**的特斯拉数据记录工具。它会自动收集你的车辆数据（每次行程、充电、电池状态等），保存在你自己的服务器上。数据完全属于你，不经过任何第三方。
 
 ### 本项目是什么？
-TeslaMate 官方的 Grafana 图表是英文的。本项目提供了 **37 个简体中文汉化版图表**（含 6 个原创分析仪表盘），把所有界面翻译成中文，开箱即用。
+TeslaMate 官方的 Grafana 图表是英文的。本项目提供了 **38 个简体中文汉化版图表**（含 7 个原创分析仪表盘），把所有界面翻译成中文，开箱即用。
 
 ### 整体架构（你不需要完全理解，但有个概念更好）
 
@@ -77,7 +77,17 @@ bash simple-deploy.sh
 - 生成随机加密密钥
 - 启动所有服务
 
-> **国内服务器 wget 下载慢？** 可以直接把脚本内容复制到服务器上执行。
+> **🇨🇳 中国大陆用户注意：**
+> 脚本默认使用 Docker Hub 镜像（`bswlhbhmt816/teslamate-chinese-dashboards`），相比 ghcr.io 在国内访问更稳定。
+> 如果拉取镜像仍然很慢或失败，请先配置 Docker 镜像代理：
+> ```bash
+> # 编辑 Docker 配置（需要 root 权限）
+> sudo tee /etc/docker/daemon.json <<EOF
+> {"registry-mirrors": ["https://dockerproxy.cn"]}
+> EOF
+> sudo systemctl daemon-reload && sudo systemctl restart docker
+> # 然后重新运行脚本
+> ```
 
 ### 方法 B：手动 Docker Compose（推荐已熟悉 Docker 的用户）
 
@@ -87,6 +97,23 @@ mkdir ~/teslamate && cd ~/teslamate
 ```
 
 **2. 创建 docker-compose.yml**
+
+> 🔴 **重要：关于 ENCRYPTION_KEY**
+>
+> `ENCRYPTION_KEY` 是用来加密你的 Tesla 账号 Token 的**系统级密钥**。
+> - **必须设置为一个随机字符串**（不能用默认值或简单的密码）
+> - **设置后绝对不能修改**，否则 Tesla Token 将无法解密，TeslaMate 会崩溃且无法恢复
+> - **请把它保存到安全的地方**（记事本、密码管理器均可）
+>
+> 生成随机密钥的命令：
+> ```bash
+> openssl rand -hex 32
+> ```
+
+> 🔴 **重要：关于数据库密码**
+>
+> `DATABASE_PASS`（teslamate 服务）和 `POSTGRES_PASSWORD`（database 服务）**必须填写完全相同的密码**，否则 TeslaMate 将无法连接数据库。
+
 ```yaml
 services:
   teslamate:
@@ -99,9 +126,9 @@ services:
     volumes:
       - ./import:/opt/app/import
     environment:
-      - ENCRYPTION_KEY=你的随机密钥  # 重要！替换为随机字符串
+      - ENCRYPTION_KEY=用 openssl rand -hex 32 生成的随机字符串  # 🔴 必填，设置后不能修改！
       - DATABASE_USER=teslamate
-      - DATABASE_PASS=你的数据库密码  # 替换为安全密码
+      - DATABASE_PASS=你的数据库密码  # 🔴 替换为安全密码，与下方 POSTGRES_PASSWORD 必须相同
       - DATABASE_NAME=teslamate
       - DATABASE_HOST=database
       - MQTT_HOST=mosquitto
@@ -113,7 +140,7 @@ services:
       - teslamate-db:/var/lib/postgresql
     environment:
       - POSTGRES_USER=teslamate
-      - POSTGRES_PASSWORD=你的数据库密码  # 与上面保持一致
+      - POSTGRES_PASSWORD=你的数据库密码  # 🔴 必须与上方 DATABASE_PASS 完全相同
       - POSTGRES_DB=teslamate
 
   grafana:
@@ -168,12 +195,39 @@ docker compose up -d
 > 本机安装用 `http://localhost:4000`
 
 ### 2. 授权 Tesla 账号
-TeslaMate 使用 **Tesla 官方 OAuth** 授权（不需要输入密码到 TeslaMate），点击登录按钮后会跳转到特斯拉官方页面完成授权。
+
+TeslaMate 使用 **Tesla 官方 OAuth** 授权，**不需要把密码输入到 TeslaMate**，全程在特斯拉官网完成。
+
+具体步骤：
+1. 点击 TeslaMate 页面上的 **「Sign in with Tesla」** 按钮
+2. 页面会跳转到 `auth.tesla.com`（特斯拉官方登录页）
+3. 输入你的**特斯拉账号和密码**
+4. 如果开启了两步验证，还需要输入验证码
+5. 授权完成后，页面自动跳回 TeslaMate
+
+> **🇨🇳 中国大陆用户注意：**
+> 登录页面会跳转到 Tesla 国际区（`auth.tesla.com`），中国账号可能需要使用 `auth.tesla.cn`。
+> 如果跳转后一直加载失败，请确认 `docker-compose.yml` 中已添加以下两行并重启：
+> ```yaml
+> - TESLA_API_HOST=https://owner-api.vn.cloud.tesla.cn
+> - TESLA_WSS_HOST=wss://streaming.vn.cloud.tesla.cn
+> ```
+
+> **授权失败常见原因：**
+> - 账号密码错误 → 确认在特斯拉 App 能正常登录
+> - 两步验证超时 → 尽快输入验证码，不要等待太久
+> - 网络不通 → 检查服务器能否访问 Tesla 服务器
 
 ### 3. 完成绑定
 授权成功后，TeslaMate 会自动开始同步车辆数据。
 
-> ⏱️ **首次同步需要几分钟**，之后会持续自动更新。
+> ⏱️ **首次同步预计 5-30 分钟**（取决于历史行程数量），之后每次行程结束自动更新。
+>
+> 同步进行中时，可以通过以下命令确认：
+> ```bash
+> docker compose logs -f teslamate
+> # 看到 "Fetching vehicle data" 或 "Importing drive" 说明正在同步
+> ```
 
 ---
 

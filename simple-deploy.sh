@@ -83,7 +83,7 @@ services:
       - POSTGRES_DB=teslamate
 
   grafana:
-    image: ghcr.io/wjsall/teslamate-chinese-dashboards:latest
+    image: bswlhbhmt816/teslamate-chinese-dashboards:latest
     restart: always
     ports:
       - 3000:3000
@@ -125,12 +125,13 @@ echo "✅ 配置文件已生成"
 echo ""
 
 # 启动服务
-echo "🚀 启动服务（首次启动需要下载镜像，请耐心等待）..."
+echo "🚀 启动服务（首次启动需要下载镜像，请耐心等待 2-5 分钟）..."
+echo "   如果长时间卡在拉取镜像，请参考文末说明配置 Docker 镜像代理。"
 docker compose up -d
 
 echo ""
-echo "⏳ 等待服务启动..."
-sleep 30
+echo "⏳ 等待服务初始化（约 90 秒）..."
+sleep 90
 
 # 检查服务状态
 echo ""
@@ -156,15 +157,18 @@ echo "  2. 按照页面引导完成 Tesla 账号授权（OAuth）"
 echo "  3. 车辆会自动开始同步数据"
 echo "  4. 几分钟后访问 Grafana 查看中文 Dashboard"
 echo ""
-echo "📚 相关文档："
-echo "  - 新手向导:     QUICKSTART.md"
-echo "  - 场景速查手册: SCENE_GUIDE.md"
-echo "  - 数据指标手册: METRICS_GUIDE.md"
-echo "  - 功能地图:     DASHBOARD_MAP.md"
-echo "  - 故障排查:     TROUBLESHOOTING.md"
+echo "📚 相关文档（在线）："
+echo "  https://github.com/wjsall/teslamate-chinese-dashboards"
 echo ""
 echo "🆘 遇到问题？"
 echo "  查看日志: docker compose logs -f"
 echo "  重启服务: docker compose restart"
-echo "  故障排查: cat TROUBLESHOOTING.md"
+echo ""
+echo "⚠️  中国大陆用户提示："
+echo "  1. 如果镜像拉取失败，在 /etc/docker/daemon.json 中添加镜像代理："
+echo "     { \"registry-mirrors\": [\"https://dockerproxy.cn\"] }"
+echo "     然后执行: sudo systemctl daemon-reload && sudo systemctl restart docker"
+echo "  2. 如果车辆数据无法同步，需要取消 docker-compose.yml 中 TESLA_API_HOST"
+echo "     和 TESLA_WSS_HOST 两行的注释（中国大陆专用 API 地址）"
+echo "  3. 配置文件路径: $INSTALL_DIR/docker-compose.yml"
 echo ""
