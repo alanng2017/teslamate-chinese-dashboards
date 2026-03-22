@@ -338,7 +338,7 @@
       "title": "数据质量",
       "type": "stat",
       "options": {
-        "colorMode": "value",
+        "colorMode": "none",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "vertical",
