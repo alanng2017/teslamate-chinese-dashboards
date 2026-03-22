@@ -482,7 +482,7 @@
               }
             ]
           },
-          "unit": "times"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -686,7 +686,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH ChargeLocations AS (\r\nSELECT\r\n  CASE\r\n    WHEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), '')))) ILIKE '%Home%' THEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), ''))))\r\n\t  WHEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), '')))) ILIKE '%Work%' THEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), ''))))\r\n\t  WHEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), '')))) ILIKE '%$geofence%' THEN 'Superchargers'\r\n\t  ELSE 'Other'\r\n  END AS location, charge_energy_added, cost\r\nFROM\r\n\tcharging_processes c\r\nLEFT JOIN addresses address ON c.address_id = address.id\r\nLEFT JOIN geofences geofence ON geofence_id = geofence.id\r\nWHERE\r\n\t$__timeFilter(end_date)\r\n\tAND car_id = $car_id\r\n\tAND c.charge_energy_added > 0\r\n), AllCharges AS (\r\nSELECT\r\n  location, SUM(charge_energy_added) AS Energy\r\nFROM ChargeLocations\r\nGROUP BY 1\r\nUNION \r\nSELECT\r\n  'Free' AS location,\r\n\tsum(charge_energy_added) AS Energy\r\nFROM\r\n\tChargeLocations\r\nWHERE\r\n\tcost = 0 AND location NOT ILIKE '%$geofence%' \r\n), Nominated AS (\r\n  SELECT SUM(energy) AS Nominated FROM AllCharges\r\n    WHERE location <> 'Other'\r\n), Total AS (\r\n  SELECT SUM(charge_energy_added) as Total FROM ChargeLocations\r\n)\r\nSELECT * FROM AllCharges\r\nWHERE location <> 'Other'\r\nUNION \r\nSELECT 'Other' AS location, (Total - Nominated) as energy FROM Total, Nominated\r\nORDER BY Energy DESC",
+          "rawSql": "WITH ChargeLocations AS (\r\nSELECT\r\n  CASE\r\n    WHEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), '')))) ILIKE '%Home%' THEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), ''))))\r\n\t  WHEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), '')))) ILIKE '%Work%' THEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), ''))))\r\n\t  WHEN COALESCE(geofence.name, CONCAT_WS(', ', COALESCE(address.name, nullif(CONCAT_WS(' ', address.display_name), '')))) ILIKE '%$geofence%' THEN '超级充电站'\r\n\t  ELSE '其他'\r\n  END AS location, charge_energy_added, cost\r\nFROM\r\n\tcharging_processes c\r\nLEFT JOIN addresses address ON c.address_id = address.id\r\nLEFT JOIN geofences geofence ON geofence_id = geofence.id\r\nWHERE\r\n\t$__timeFilter(end_date)\r\n\tAND car_id = $car_id\r\n\tAND c.charge_energy_added > 0\r\n), AllCharges AS (\r\nSELECT\r\n  location, SUM(charge_energy_added) AS Energy\r\nFROM ChargeLocations\r\nGROUP BY 1\r\nUNION \r\nSELECT\r\n  '免费' AS location,\r\n\tsum(charge_energy_added) AS Energy\r\nFROM\r\n\tChargeLocations\r\nWHERE\r\n\tcost = 0 AND location NOT ILIKE '%$geofence%' \r\n), Nominated AS (\r\n  SELECT SUM(energy) AS Nominated FROM AllCharges\r\n    WHERE location <> '其他'\r\n), Total AS (\r\n  SELECT SUM(charge_energy_added) as Total FROM ChargeLocations\r\n)\r\nSELECT * FROM AllCharges\r\nWHERE location <> '其他'\r\nUNION \r\nSELECT '其他' AS location, (Total - Nominated) as energy FROM Total, Nominated\r\nORDER BY Energy DESC",
           "refId": "A",
           "select": [
             [
@@ -735,6 +735,18 @@
           "unit": "none"
         },
         "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "充电量(kWh)"
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byName",
@@ -2420,7 +2432,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "充电添加能量"
+              "options": "charge_energy_added"
             },
             "properties": [
               {
@@ -2575,7 +2587,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "充电添加能量"
+              "options": "charge_energy_added"
             },
             "properties": [
               {
@@ -2730,7 +2742,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "充电添加能量"
+              "options": "charge_energy_added"
             },
             "properties": [
               {
@@ -2885,7 +2897,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "充电添加能量"
+              "options": "charge_energy_added"
             },
             "properties": [
               {
