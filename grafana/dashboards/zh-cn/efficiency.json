@@ -93,7 +93,7 @@
         "type": "grafana-postgresql-datasource",
         "uid": "TeslaMate"
       },
-      "description": "（驾驶中续航损失 × 能效）/ 行驶距离",
+      "description": "（驾驶中续航损失 × 能效）/ 行驶距离；坡度调整模式下消除海拔影响",
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
@@ -211,7 +211,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "select \n  sum((start_${preferred_range}_range_km - end_${preferred_range}_range_km) * cars.efficiency) / NULLIF(convert_km(sum(distance)::numeric, '$length_unit'), 0) * 1000 AS \"能耗\"\nfrom drives \ninner join cars on cars.id = car_id\nwhere \n  distance is not null and\n  start_${preferred_range}_range_km - end_${preferred_range}_range_km >= 0.1 and\n  car_id = $car_id",
+          "rawSql": "select\n  CASE\n    WHEN '$efficiency' = 'slope-adjusted' THEN\n      sum(\n        (start_${preferred_range}_range_km - end_${preferred_range}_range_km) * cars.efficiency\n        - 2100 * 9.81 * COALESCE(ascent, 0) / 3600 / 1000\n        + 2100 * 0.85 * 9.81 * COALESCE(descent, 0) / 3600 / 1000\n      ) / NULLIF(convert_km(sum(distance)::numeric, '$length_unit'), 0) * 1000\n    ELSE\n      sum((start_${preferred_range}_range_km - end_${preferred_range}_range_km) * cars.efficiency)\n      / NULLIF(convert_km(sum(distance)::numeric, '$length_unit'), 0) * 1000\n  END AS \"能耗\"\nfrom drives\ninner join cars on cars.id = car_id\nwhere\n  distance is not null and\n  start_${preferred_range}_range_km - end_${preferred_range}_range_km >= 0.1 and\n  car_id = $car_id",
           "refId": "A",
           "sql": {
             "columns": [
@@ -868,7 +868,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH t AS (\n\tSELECT\n\t  CASE WHEN '$temp_unit' = 'C' THEN ROUND(cast(outside_temp_avg AS numeric) / 5, 0) * 5 \n\t\t\t   WHEN '$temp_unit' = 'F' THEN ROUND(cast(convert_celsius(outside_temp_avg, '$temp_unit') AS numeric) / 10, 0) * 10\n\t\tEND AS outside_temp,\n\t\tsum(start_ideal_range_km - end_ideal_range_km) AS total_ideal_range,\n\t\tsum(start_rated_range_km - end_rated_range_km) AS total_rated_range,\n\t\tsum(distance) AS total_distance,\n\t\tsum(duration_min) as duration,\n\t\tcar_id\n\tFROM\n\t\tdrives\n\tWHERE\n\t\tdistance IS NOT NULL\n\t\tAND car_id = $car_id\n\t\tAND convert_km(distance::numeric, '$length_unit') >= $min_distance \n\t\tAND start_${preferred_range}_range_km - end_${preferred_range}_range_km > 0.1\n\tGROUP BY\n\t\t1,\n\t\tcar_id\n)\n\nSELECT\n\toutside_temp as outside_temp_$temp_unit,\n  total_distance / total_${preferred_range}_range AS efficiency,\n\ttotal_${preferred_range}_range / convert_km(total_distance::numeric, '$length_unit') * c.efficiency * 1000 AS consumption_$length_unit,\n  convert_km(total_distance::numeric, '$length_unit') as total_distance_$length_unit,\n\t(convert_km(total_distance::numeric, '$length_unit') / duration) * 60 as avg_speed_$length_unit\nFROM\n\tt\nJOIN cars c ON t.car_id = c.id\nWHERE outside_temp IS NOT NULL\norder by 1 desc\n",
+          "rawSql": "WITH t AS (\n\tSELECT\n\t  CASE WHEN '$temp_unit' = 'C' THEN ROUND(cast(outside_temp_avg AS numeric) / 5, 0) * 5\n\t\t\t   WHEN '$temp_unit' = 'F' THEN ROUND(cast(convert_celsius(outside_temp_avg, '$temp_unit') AS numeric) / 10, 0) * 10\n\t\tEND AS outside_temp,\n\t\tsum(start_${preferred_range}_range_km - end_${preferred_range}_range_km) AS total_range,\n\t\tsum(distance) AS total_distance,\n\t\tsum(duration_min) as duration,\n\t\tsum(COALESCE(ascent, 0)) AS total_ascent,\n\t\tsum(COALESCE(descent, 0)) AS total_descent,\n\t\tcar_id\n\tFROM\n\t\tdrives\n\tWHERE\n\t\tdistance IS NOT NULL\n\t\tAND car_id = $car_id\n\t\tAND convert_km(distance::numeric, '$length_unit') >= $min_distance\n\t\tAND start_${preferred_range}_range_km - end_${preferred_range}_range_km > 0.1\n\tGROUP BY\n\t\t1,\n\t\tcar_id\n)\n\nSELECT\n\toutside_temp as outside_temp_$temp_unit,\n\tCASE\n\t  WHEN '$efficiency' = 'slope-adjusted' THEN\n\t\ttotal_distance * c.efficiency / NULLIF(\n\t\t  total_range * c.efficiency\n\t\t  + 2100 * 0.85 * 9.81 * total_descent / 3600 / 1000\n\t\t  - 2100 * 9.81 * total_ascent / 3600 / 1000\n\t\t, 0)\n\t  ELSE\n\t\ttotal_distance / NULLIF(total_range, 0)\n\tEND AS efficiency,\n\ttotal_range / convert_km(total_distance::numeric, '$length_unit') * c.efficiency * 1000 AS consumption_$length_unit,\n\tconvert_km(total_distance::numeric, '$length_unit') as total_distance_$length_unit,\n\t(convert_km(total_distance::numeric, '$length_unit') / duration) * 60 as avg_speed_$length_unit\nFROM\n\tt\nJOIN cars c ON t.car_id = c.id\nWHERE outside_temp IS NOT NULL\norder by 1 desc\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1465,6 +1465,34 @@
         "type": "custom"
       },
       {
+        "current": {
+          "selected": false,
+          "text": "坡度调整",
+          "value": "slope-adjusted"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "能效模式",
+        "multi": false,
+        "name": "efficiency",
+        "options": [
+          {
+            "selected": true,
+            "text": "坡度调整",
+            "value": "slope-adjusted"
+          },
+          {
+            "selected": false,
+            "text": "按距离",
+            "value": "by distance"
+          }
+        ],
+        "query": "slope-adjusted,by distance",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
         "current": {},
         "datasource": {
           "type": "grafana-postgresql-datasource",
@@ -1490,7 +1518,7 @@
   "timepicker": {
     "hidden": true
   },
-  "timezone": "",
+  "timezone": "browser",
   "title": "能效",
   "uid": "fu4SiQgWz",
   "version": 1
