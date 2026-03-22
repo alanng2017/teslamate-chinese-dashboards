@@ -108,7 +108,7 @@
         },
         "textMode": "auto"
       },
-      "title": "停车次数",
+      "title": "",
       "type": "stat",
       "targets": [
         {
@@ -172,7 +172,7 @@
         },
         "textMode": "auto"
       },
-      "title": "平均单次掉电",
+      "title": "",
       "type": "stat",
       "targets": [
         {
@@ -236,7 +236,7 @@
         },
         "textMode": "auto"
       },
-      "title": "最大单次掉电",
+      "title": "",
       "type": "stat",
       "targets": [
         {
@@ -300,7 +300,7 @@
         },
         "textMode": "auto"
       },
-      "title": "平均停车时长",
+      "title": "",
       "type": "stat",
       "targets": [
         {

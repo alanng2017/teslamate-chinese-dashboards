@@ -113,7 +113,7 @@
           "valueSize": 42
         }
       },
-      "title": "累计回收电量",
+      "title": "",
       "type": "stat",
       "targets": [
         {
@@ -181,7 +181,7 @@
           "valueSize": 42
         }
       },
-      "title": "平均单次回收",
+      "title": "",
       "type": "stat",
       "targets": [
         {
@@ -249,7 +249,7 @@
           "valueSize": 42
         }
       },
-      "title": "平均回收率",
+      "title": "",
       "description": "动能回收电量占（行驶消耗 + 回收量）的平均比例",
       "type": "stat",
       "targets": [
@@ -318,7 +318,7 @@
           "valueSize": 42
         }
       },
-      "title": "最高单次回收",
+      "title": "",
       "type": "stat",
       "targets": [
         {
