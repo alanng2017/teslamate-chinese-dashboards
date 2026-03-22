@@ -43,7 +43,7 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
           "unit": "none",
           "decimals": 0,
-          "displayName": "当前满电续航(km)"
+          "displayName": "当前满电续航"
         },
         "overrides": []
       },
@@ -57,7 +57,7 @@
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "textMode": "auto"
       },
-      "description": "最近90天内电量≥95%时的平均推算满电续航",
+      "description": "当前推算满电续航，与电池健康度仪表盘数值一致",
       "title": "",
       "type": "stat",
       "targets": [
@@ -66,7 +66,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT ROUND(AVG(\n  CASE WHEN '$preferred_range' = 'ideal' THEN c.ideal_battery_range_km\n  ELSE c.rated_battery_range_km END * 100.0 / c.battery_level\n)::numeric, 0) AS \"当前满电续航(km)\"\nFROM charges c\nJOIN charging_processes cp ON cp.id = c.charging_process_id\nWHERE cp.car_id = $car_id\n  AND c.battery_level >= 95\n  AND c.rated_battery_range_km IS NOT NULL\n  AND c.ideal_battery_range_km IS NOT NULL\n  AND c.date >= NOW() - INTERVAL '90 days';",
+          "rawSql": "SELECT ROUND(('$aux'::json ->> 'CurrentRange')::numeric, 0) AS \"当前满电续航\"",
           "refId": "A"
         }
       ]
@@ -80,7 +80,7 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
           "unit": "none",
           "decimals": 0,
-          "displayName": "初始满电续航(km)"
+          "displayName": "初始满电续航"
         },
         "overrides": []
       },
@@ -94,7 +94,7 @@
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "textMode": "auto"
       },
-      "description": "根据最早20次近满电充电记录自动推算出厂续航基准",
+      "description": "历史记录中最大续航。如安装 TeslaMate 前车辆已使用一段时间，建议在顶部「自定义新车续航」填入出厂续航以获得准确退化率",
       "title": "",
       "type": "stat",
       "targets": [
@@ -103,7 +103,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT ROUND(AVG(\n  CASE WHEN '$preferred_range' = 'ideal' THEN t.ideal_battery_range_km\n  ELSE t.rated_battery_range_km END * 100.0 / t.battery_level\n)::numeric, 0) AS \"初始满电续航(km)\"\nFROM (\n  SELECT c.rated_battery_range_km, c.ideal_battery_range_km, c.battery_level\n  FROM charges c\n  JOIN charging_processes cp ON cp.id = c.charging_process_id\n  WHERE cp.car_id = $car_id\n    AND c.battery_level >= 95\n    AND c.rated_battery_range_km IS NOT NULL\n    AND c.ideal_battery_range_km IS NOT NULL\n  ORDER BY c.date ASC\n  LIMIT 20\n) t;",
+          "rawSql": "SELECT ROUND(\n  CASE WHEN $custom_max_range::float > 0\n    THEN $custom_max_range::float\n    ELSE ('$aux'::json ->> 'MaxRange')::float\n  END::numeric, 0) AS \"初始满电续航\"",
           "refId": "A"
         }
       ]
@@ -117,7 +117,7 @@
           "thresholds": { "mode": "absolute", "steps": [{ "color": "orange", "value": null }] },
           "unit": "none",
           "decimals": 0,
-          "displayName": "已退化续航(km)"
+          "displayName": "已退化续航"
         },
         "overrides": []
       },
@@ -140,7 +140,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH initial AS (\n  SELECT ROUND(AVG(\n    CASE WHEN '$preferred_range' = 'ideal' THEN t.ideal_battery_range_km\n    ELSE t.rated_battery_range_km END * 100.0 / t.battery_level\n  )::numeric, 0) AS v\n  FROM (\n    SELECT c.rated_battery_range_km, c.ideal_battery_range_km, c.battery_level\n    FROM charges c\n    JOIN charging_processes cp ON cp.id = c.charging_process_id\n    WHERE cp.car_id = $car_id AND c.battery_level >= 95\n      AND c.rated_battery_range_km IS NOT NULL AND c.ideal_battery_range_km IS NOT NULL\n    ORDER BY c.date ASC LIMIT 20\n  ) t\n),\ncurrent AS (\n  SELECT ROUND(AVG(\n    CASE WHEN '$preferred_range' = 'ideal' THEN c.ideal_battery_range_km\n    ELSE c.rated_battery_range_km END * 100.0 / c.battery_level\n  )::numeric, 0) AS v\n  FROM charges c\n  JOIN charging_processes cp ON cp.id = c.charging_process_id\n  WHERE cp.car_id = $car_id AND c.battery_level >= 95\n    AND c.rated_battery_range_km IS NOT NULL AND c.ideal_battery_range_km IS NOT NULL\n    AND c.date >= NOW() - INTERVAL '90 days'\n)\nSELECT GREATEST(i.v - c.v, 0) AS \"已退化续航(km)\"\nFROM initial i, current c;",
+          "rawSql": "SELECT ROUND(GREATEST(\n  CASE WHEN $custom_max_range::float > 0\n    THEN $custom_max_range::float\n    ELSE ('$aux'::json ->> 'MaxRange')::float\n  END\n  - ('$aux'::json ->> 'CurrentRange')::float,\n  0)::numeric, 0) AS \"已退化续航\"",
           "refId": "A"
         }
       ]
@@ -149,9 +149,7 @@
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "TeslaMate" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
+          "color": { "mode": "thresholds" },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -178,7 +176,7 @@
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "textMode": "auto"
       },
-      "description": "已退化续航 ÷ 初始续航 × 100%。绿色<5% 正常，黄色5-10% 轻微，橙色10-15% 明显，红色>15% 需关注",
+      "description": "已退化续航 ÷ 初始续航 × 100%。绿<5% 正常，黄5-10% 轻微，橙10-15% 明显，红>15% 需关注",
       "title": "",
       "type": "stat",
       "targets": [
@@ -187,7 +185,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH initial AS (\n  SELECT AVG(\n    CASE WHEN '$preferred_range' = 'ideal' THEN t.ideal_battery_range_km\n    ELSE t.rated_battery_range_km END * 100.0 / t.battery_level\n  ) AS v\n  FROM (\n    SELECT c.rated_battery_range_km, c.ideal_battery_range_km, c.battery_level\n    FROM charges c\n    JOIN charging_processes cp ON cp.id = c.charging_process_id\n    WHERE cp.car_id = $car_id AND c.battery_level >= 95\n      AND c.rated_battery_range_km IS NOT NULL AND c.ideal_battery_range_km IS NOT NULL\n    ORDER BY c.date ASC LIMIT 20\n  ) t\n),\ncurrent AS (\n  SELECT AVG(\n    CASE WHEN '$preferred_range' = 'ideal' THEN c.ideal_battery_range_km\n    ELSE c.rated_battery_range_km END * 100.0 / c.battery_level\n  ) AS v\n  FROM charges c\n  JOIN charging_processes cp ON cp.id = c.charging_process_id\n  WHERE cp.car_id = $car_id AND c.battery_level >= 95\n    AND c.rated_battery_range_km IS NOT NULL AND c.ideal_battery_range_km IS NOT NULL\n    AND c.date >= NOW() - INTERVAL '90 days'\n)\nSELECT ROUND(GREATEST((1 - c.v / NULLIF(i.v, 0)) * 100, 0)::numeric, 1) AS \"退化率(%)\"\nFROM initial i, current c;",
+          "rawSql": "WITH vals AS (\n  SELECT\n    CASE WHEN $custom_max_range::float > 0\n      THEN $custom_max_range::float\n      ELSE ('$aux'::json ->> 'MaxRange')::float\n    END AS max_r,\n    ('$aux'::json ->> 'CurrentRange')::float AS cur_r\n)\nSELECT ROUND(GREATEST((1 - cur_r / NULLIF(max_r, 0)) * 100, 0)::numeric, 1) AS \"退化率(%)\"\nFROM vals",
           "refId": "A"
         }
       ]
@@ -210,7 +208,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "续航(km)",
+            "axisLabel": "续航",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -243,7 +241,7 @@
         },
         "tooltip": { "mode": "multi", "sort": "none" }
       },
-      "description": "每周采样一次，取电量≥95%时的推算满电续航均值。数据点越密集说明近满电充电越频繁",
+      "description": "每周取最高推算满电续航，与电池健康度计算口径一致（使用 usable_battery_level）",
       "title": "满电续航退化趋势（按周）",
       "type": "timeseries",
       "targets": [
@@ -252,7 +250,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('week', c.date) AS time,\n  ROUND(AVG(\n    CASE WHEN '$preferred_range' = 'ideal' THEN c.ideal_battery_range_km\n    ELSE c.rated_battery_range_km END * 100.0 / c.battery_level\n  )::numeric, 0) AS \"满电续航(km)\"\nFROM charges c\nJOIN charging_processes cp ON cp.id = c.charging_process_id\nWHERE cp.car_id = $car_id\n  AND c.battery_level >= 95\n  AND c.rated_battery_range_km IS NOT NULL\n  AND c.ideal_battery_range_km IS NOT NULL\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "SELECT\n  date_trunc('week', c.date) AS time,\n  ROUND(MAX(\n    ${preferred_range}_battery_range_km::float / NULLIF(c.usable_battery_level, 0) * 100\n  )::numeric, 0) AS \"满电续航\"\nFROM charges c\nJOIN charging_processes cp ON cp.id = c.charging_process_id\nWHERE cp.car_id = $car_id\n  AND c.usable_battery_level > 0\n  AND c.${preferred_range}_battery_range_km IS NOT NULL\nGROUP BY 1\nORDER BY 1;",
           "refId": "A"
         }
       ]
@@ -273,7 +271,7 @@
           "color": { "mode": "palette-classic" },
           "custom": {
             "axisBorderShow": false,
-            "axisLabel": "续航(km)",
+            "axisLabel": "续航",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "bars",
@@ -301,8 +299,8 @@
         },
         "tooltip": { "mode": "single", "sort": "none" }
       },
-      "description": "每月平均满电续航，趋势向下说明电池在退化",
-      "title": "每月平均满电续航(km)",
+      "description": "每月最高推算满电续航，趋势向下说明电池在退化",
+      "title": "每月最高满电续航",
       "type": "timeseries",
       "targets": [
         {
@@ -310,7 +308,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('month', c.date) AS time,\n  ROUND(AVG(\n    CASE WHEN '$preferred_range' = 'ideal' THEN c.ideal_battery_range_km\n    ELSE c.rated_battery_range_km END * 100.0 / c.battery_level\n  )::numeric, 0) AS \"月均满电续航(km)\"\nFROM charges c\nJOIN charging_processes cp ON cp.id = c.charging_process_id\nWHERE cp.car_id = $car_id\n  AND c.battery_level >= 95\n  AND c.rated_battery_range_km IS NOT NULL\n  AND c.ideal_battery_range_km IS NOT NULL\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "SELECT\n  date_trunc('month', c.date) AS time,\n  ROUND(MAX(\n    ${preferred_range}_battery_range_km::float / NULLIF(c.usable_battery_level, 0) * 100\n  )::numeric, 0) AS \"月最高满电续航\"\nFROM charges c\nJOIN charging_processes cp ON cp.id = c.charging_process_id\nWHERE cp.car_id = $car_id\n  AND c.usable_battery_level > 0\n  AND c.${preferred_range}_battery_range_km IS NOT NULL\nGROUP BY 1\nORDER BY 1;",
           "refId": "A"
         }
       ]
@@ -332,20 +330,7 @@
           "unit": "none",
           "decimals": 0
         },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "近满电采样次数" },
-            "properties": [{ "id": "displayName", "value": "近满电采样次数" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "最高电量(%)" },
-            "properties": [{ "id": "displayName", "value": "最高电量(%)" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "最高续航(km)" },
-            "properties": [{ "id": "displayName", "value": "最高续航(km)" }]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": { "h": 9, "w": 10, "x": 14, "y": 20 },
       "id": 7,
@@ -366,7 +351,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COUNT(*) AS \"近满电采样次数\",\n  MAX(c.battery_level) AS \"最高电量(%)\",\n  ROUND(MAX(\n    CASE WHEN '$preferred_range' = 'ideal' THEN c.ideal_battery_range_km\n    ELSE c.rated_battery_range_km END * 100.0 / c.battery_level\n  )::numeric, 0) AS \"最高续航(km)\"\nFROM charges c\nJOIN charging_processes cp ON cp.id = c.charging_process_id\nWHERE cp.car_id = $car_id\n  AND c.battery_level >= 95\n  AND c.rated_battery_range_km IS NOT NULL\n  AND c.ideal_battery_range_km IS NOT NULL;",
+          "rawSql": "SELECT\n  COUNT(*) AS \"充电记录总数\",\n  MAX(c.usable_battery_level) AS \"最高可用电量(%)\",\n  ROUND(MAX(\n    ${preferred_range}_battery_range_km::float / NULLIF(c.usable_battery_level, 0) * 100\n  )::numeric, 0) AS \"历史最高续航\"\nFROM charges c\nJOIN charging_processes cp ON cp.id = c.charging_process_id\nWHERE cp.car_id = $car_id\n  AND c.usable_battery_level > 0\n  AND c.${preferred_range}_battery_range_km IS NOT NULL;",
           "refId": "A"
         }
       ]
@@ -387,7 +372,7 @@
           "color": { "mode": "continuous-BlYlRd" },
           "custom": {
             "axisBorderShow": false,
-            "axisLabel": "续航(km)",
+            "axisLabel": "续航",
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisPlacement": "auto",
@@ -415,8 +400,8 @@
         "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
         "tooltip": { "mode": "single", "sort": "none" }
       },
-      "description": "每个点代表一次电量≥95%的充电记录推算出的满电续航。点越分散说明数据噪声越大（受温度、SOC校准影响）",
-      "title": "近满电充电续航散点（原始数据）",
+      "description": "每个点代表一条充电记录推算出的满电续航。点越分散说明数据噪声越大（受温度、SOC校准影响）",
+      "title": "推算满电续航散点（原始数据）",
       "type": "timeseries",
       "targets": [
         {
@@ -424,7 +409,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  c.date AS time,\n  ROUND((\n    CASE WHEN '$preferred_range' = 'ideal' THEN c.ideal_battery_range_km\n    ELSE c.rated_battery_range_km END * 100.0 / c.battery_level\n  )::numeric, 0) AS \"推算满电续航(km)\"\nFROM charges c\nJOIN charging_processes cp ON cp.id = c.charging_process_id\nWHERE cp.car_id = $car_id\n  AND c.battery_level >= 95\n  AND c.rated_battery_range_km IS NOT NULL\n  AND c.ideal_battery_range_km IS NOT NULL\nORDER BY c.date;",
+          "rawSql": "SELECT\n  c.date AS time,\n  ROUND(\n    (${preferred_range}_battery_range_km::float / NULLIF(c.usable_battery_level, 0) * 100\n  )::numeric, 0) AS \"推算满电续航\"\nFROM charges c\nJOIN charging_processes cp ON cp.id = c.charging_process_id\nWHERE cp.car_id = $car_id\n  AND c.usable_battery_level > 0\n  AND c.${preferred_range}_battery_range_km IS NOT NULL\nORDER BY c.date;",
           "refId": "A"
         }
       ]
@@ -464,6 +449,43 @@
         "regex": "",
         "type": "query",
         "regexApplyTo": "value"
+      },
+      {
+        "current": {},
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "TeslaMate" },
+        "definition": "SELECT unit_of_length FROM settings LIMIT 1",
+        "hide": 2,
+        "includeAll": false,
+        "name": "length_unit",
+        "options": [],
+        "query": "SELECT unit_of_length FROM settings LIMIT 1",
+        "refresh": 1,
+        "regex": "",
+        "type": "query",
+        "regexApplyTo": "value"
+      },
+      {
+        "current": {},
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "TeslaMate" },
+        "definition": "WITH Aux as (\n    SELECT \n        car_id,\n        COALESCE(derived_efficiency, car_efficiency) AS efficiency\n    FROM (\n        SELECT\n            ROUND((charge_energy_added / NULLIF(end_rated_range_km - start_rated_range_km, 0))::numeric, 3) * 100 AS derived_efficiency,\n            COUNT(*) as count,\n            cars.id as car_id,\n            cars.efficiency * 100 AS car_efficiency\n        FROM cars\n            LEFT JOIN charging_processes ON\n                cars.id = charging_processes.car_id \n                AND duration_min > 10\n                AND end_battery_level <= 95\n                AND start_rated_range_km IS NOT NULL\n                AND end_rated_range_km IS NOT NULL\n                AND charge_energy_added > 0\n        WHERE cars.id = $car_id\n        GROUP BY 1, 3, 4\n        ORDER BY 2 DESC\n        LIMIT 1\n    ) AS Efficiency\n),\n\nCurrentCapacity AS (\n    SELECT\n        AVG(Capacity) AS Capacity\n    FROM (\n        SELECT \n            c.rated_battery_range_km * aux.efficiency / c.usable_battery_level AS Capacity\n        FROM charging_processes cp\n            INNER JOIN charges c ON c.charging_process_id = cp.id \n            INNER JOIN aux ON cp.car_id = aux.car_id\n        WHERE\n            cp.car_id = $car_id\n            AND cp.end_date IS NOT NULL\n            AND cp.charge_energy_added >= aux.efficiency\n            AND c.usable_battery_level > 0\n        ORDER BY cp.end_date DESC, c.date desc\n        LIMIT 100\n    ) AS lastCharges\n),\n\nMaxCapacity AS (\n    SELECT \n        MAX(c.rated_battery_range_km * aux.efficiency / c.usable_battery_level) AS Capacity\n    FROM charging_processes cp\n        INNER JOIN (\n            SELECT\n                charging_process_id,\n                MAX(date) as date FROM charges WHERE usable_battery_level > 0 GROUP BY charging_process_id\n        ) AS gcharges ON\n            cp.id = gcharges.charging_process_id\n        INNER JOIN charges c ON\n            c.charging_process_id = cp.id\n            AND c.date = gcharges.date\n        INNER JOIN aux ON cp.car_id = aux.car_id\n    WHERE\n        cp.car_id = $car_id\n        AND cp.end_date IS NOT NULL\n        AND cp.charge_energy_added >= aux.efficiency\n),\n\nCurrentRange AS (\n    SELECT\n        (range * 100.0 / usable_battery_level) AS range\n    FROM (\n        (\n            SELECT\n                date,\n                ${preferred_range}_battery_range_km AS range,\n                usable_battery_level AS usable_battery_level\n            FROM positions\n            WHERE\n                car_id = $car_id\n                AND ideal_battery_range_km IS NOT NULL\n                AND usable_battery_level > 0 \n            ORDER BY date DESC\n            LIMIT 1\n        )\n        UNION ALL\n        (\n            SELECT date,\n                ${preferred_range}_battery_range_km AS range,\n                usable_battery_level as usable_battery_level\n            FROM charges c\n                INNER JOIN charging_processes p ON p.id = c.charging_process_id\n            WHERE\n                p.car_id = $car_id\n                AND usable_battery_level > 0\n            ORDER BY date DESC\n            LIMIT 1\n        )\n    ) AS data\n    ORDER BY date DESC\n    LIMIT 1\n),\n\nMaxRange AS (\n    SELECT\n        floor(extract(epoch from date)/86400)*86400 AS time,\n        CASE\n            WHEN sum(usable_battery_level) = 0 THEN sum(${preferred_range}_battery_range_km) * 100\n            ELSE sum(${preferred_range}_battery_range_km) / sum(usable_battery_level) * 100\n        END AS range\n    FROM (\n        SELECT\n            battery_level,\n            usable_battery_level,\n            date,\n            ${preferred_range}_battery_range_km\n        FROM charges c \n            INNER JOIN charging_processes p ON p.id = c.charging_process_id \n        WHERE\n            p.car_id = $car_id\n            AND usable_battery_level IS NOT NULL\n    ) AS data\n    GROUP BY 1\n    ORDER BY 2 DESC\n    LIMIT 1\n),\n\nBase AS (\n    SELECT NULL\n)\n\nSELECT\n    json_build_object(\n        'MaxRange', convert_km(MaxRange.range,'$length_unit'),\n        'CurrentRange', convert_km(CurrentRange.range,'$length_unit'),\n        'MaxCapacity', MaxCapacity.Capacity,\n        'CurrentCapacity', CASE WHEN CurrentCapacity.Capacity IS NULL THEN 1 ELSE CurrentCapacity.Capacity END,\n        'RatedEfficiency', aux.efficiency\n    ) #>> '{}'\nFROM Base\n    LEFT JOIN MaxRange ON true\n    LEFT JOIN CurrentRange ON true\n    LEFT JOIN Aux ON true\n    LEFT JOIN MaxCapacity ON true\n    LEFT JOIN CurrentCapacity ON true",
+        "hide": 2,
+        "includeAll": false,
+        "name": "aux",
+        "options": [],
+        "query": "WITH Aux as (\n    SELECT \n        car_id,\n        COALESCE(derived_efficiency, car_efficiency) AS efficiency\n    FROM (\n        SELECT\n            ROUND((charge_energy_added / NULLIF(end_rated_range_km - start_rated_range_km, 0))::numeric, 3) * 100 AS derived_efficiency,\n            COUNT(*) as count,\n            cars.id as car_id,\n            cars.efficiency * 100 AS car_efficiency\n        FROM cars\n            LEFT JOIN charging_processes ON\n                cars.id = charging_processes.car_id \n                AND duration_min > 10\n                AND end_battery_level <= 95\n                AND start_rated_range_km IS NOT NULL\n                AND end_rated_range_km IS NOT NULL\n                AND charge_energy_added > 0\n        WHERE cars.id = $car_id\n        GROUP BY 1, 3, 4\n        ORDER BY 2 DESC\n        LIMIT 1\n    ) AS Efficiency\n),\n\nCurrentCapacity AS (\n    SELECT\n        AVG(Capacity) AS Capacity\n    FROM (\n        SELECT \n            c.rated_battery_range_km * aux.efficiency / c.usable_battery_level AS Capacity\n        FROM charging_processes cp\n            INNER JOIN charges c ON c.charging_process_id = cp.id \n            INNER JOIN aux ON cp.car_id = aux.car_id\n        WHERE\n            cp.car_id = $car_id\n            AND cp.end_date IS NOT NULL\n            AND cp.charge_energy_added >= aux.efficiency\n            AND c.usable_battery_level > 0\n        ORDER BY cp.end_date DESC, c.date desc\n        LIMIT 100\n    ) AS lastCharges\n),\n\nMaxCapacity AS (\n    SELECT \n        MAX(c.rated_battery_range_km * aux.efficiency / c.usable_battery_level) AS Capacity\n    FROM charging_processes cp\n        INNER JOIN (\n            SELECT\n                charging_process_id,\n                MAX(date) as date FROM charges WHERE usable_battery_level > 0 GROUP BY charging_process_id\n        ) AS gcharges ON\n            cp.id = gcharges.charging_process_id\n        INNER JOIN charges c ON\n            c.charging_process_id = cp.id\n            AND c.date = gcharges.date\n        INNER JOIN aux ON cp.car_id = aux.car_id\n    WHERE\n        cp.car_id = $car_id\n        AND cp.end_date IS NOT NULL\n        AND cp.charge_energy_added >= aux.efficiency\n),\n\nCurrentRange AS (\n    SELECT\n        (range * 100.0 / usable_battery_level) AS range\n    FROM (\n        (\n            SELECT\n                date,\n                ${preferred_range}_battery_range_km AS range,\n                usable_battery_level AS usable_battery_level\n            FROM positions\n            WHERE\n                car_id = $car_id\n                AND ideal_battery_range_km IS NOT NULL\n                AND usable_battery_level > 0 \n            ORDER BY date DESC\n            LIMIT 1\n        )\n        UNION ALL\n        (\n            SELECT date,\n                ${preferred_range}_battery_range_km AS range,\n                usable_battery_level as usable_battery_level\n            FROM charges c\n                INNER JOIN charging_processes p ON p.id = c.charging_process_id\n            WHERE\n                p.car_id = $car_id\n                AND usable_battery_level > 0\n            ORDER BY date DESC\n            LIMIT 1\n        )\n    ) AS data\n    ORDER BY date DESC\n    LIMIT 1\n),\n\nMaxRange AS (\n    SELECT\n        floor(extract(epoch from date)/86400)*86400 AS time,\n        CASE\n            WHEN sum(usable_battery_level) = 0 THEN sum(${preferred_range}_battery_range_km) * 100\n            ELSE sum(${preferred_range}_battery_range_km) / sum(usable_battery_level) * 100\n        END AS range\n    FROM (\n        SELECT\n            battery_level,\n            usable_battery_level,\n            date,\n            ${preferred_range}_battery_range_km\n        FROM charges c \n            INNER JOIN charging_processes p ON p.id = c.charging_process_id \n        WHERE\n            p.car_id = $car_id\n            AND usable_battery_level IS NOT NULL\n    ) AS data\n    GROUP BY 1\n    ORDER BY 2 DESC\n    LIMIT 1\n),\n\nBase AS (\n    SELECT NULL\n)\n\nSELECT\n    json_build_object(\n        'MaxRange', convert_km(MaxRange.range,'$length_unit'),\n        'CurrentRange', convert_km(CurrentRange.range,'$length_unit'),\n        'MaxCapacity', MaxCapacity.Capacity,\n        'CurrentCapacity', CASE WHEN CurrentCapacity.Capacity IS NULL THEN 1 ELSE CurrentCapacity.Capacity END,\n        'RatedEfficiency', aux.efficiency\n    ) #>> '{}'\nFROM Base\n    LEFT JOIN MaxRange ON true\n    LEFT JOIN CurrentRange ON true\n    LEFT JOIN Aux ON true\n    LEFT JOIN MaxCapacity ON true\n    LEFT JOIN CurrentCapacity ON true",
+        "refresh": 1,
+        "regex": "",
+        "regexApplyTo": "value",
+        "type": "query"
+      },
+      {
+        "current": { "text": "0", "value": "0" },
+        "description": "如已购车时即安装 TeslaMate 请保持默认 0；如安装前车辆已使用一段时间，请填入出厂续航里程，退化率将以此为基准计算",
+        "label": "自定义新车续航里程",
+        "name": "custom_max_range",
+        "options": [{ "selected": true, "text": "0", "value": "0" }],
+        "query": "0",
+        "type": "textbox"
       }
     ]
   },
@@ -472,5 +494,5 @@
   "timezone": "browser",
   "title": "续航退化分析",
   "uid": "range_degrad_cn",
-  "version": 1
+  "version": 2
 }
