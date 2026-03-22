@@ -251,6 +251,10 @@
             },
             "properties": [
               {
+                "id": "displayName",
+                "value": "电池加热(开/关)"
+              },
+              {
                 "id": "color",
                 "value": {
                   "fixedColor": "semi-dark-red",
@@ -296,6 +300,10 @@
             },
             "properties": [
               {
+                "id": "displayName",
+                "value": "功率(kW)"
+              },
+              {
                 "id": "color",
                 "value": {
                   "fixedColor": "semi-dark-orange",
@@ -310,6 +318,10 @@
               "options": "Rated Efficiency (kWh/100km)"
             },
             "properties": [
+              {
+                "id": "displayName",
+                "value": "额定能耗(Wh/km)"
+              },
               {
                 "id": "color",
                 "value": {
@@ -340,6 +352,10 @@
               "options": "Speed (km/h)"
             },
             "properties": [
+              {
+                "id": "displayName",
+                "value": "速度(km/h)"
+              },
               {
                 "id": "color",
                 "value": {

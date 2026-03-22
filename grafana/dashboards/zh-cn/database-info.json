@@ -782,6 +782,10 @@
             },
             "properties": [
               {
+                "id": "displayName",
+                "value": "行数"
+              },
+              {
                 "id": "custom.align",
                 "value": "right"
               },
@@ -887,6 +891,10 @@
             },
             "properties": [
               {
+                "id": "displayName",
+                "value": "索引大小"
+              },
+              {
                 "id": "unit",
                 "value": "bytes"
               },
@@ -919,6 +927,10 @@
             },
             "properties": [
               {
+                "id": "displayName",
+                "value": "索引"
+              },
+              {
                 "id": "custom.align",
                 "value": "auto"
               },
@@ -934,6 +946,10 @@
               "options": "Tuples Fetched"
             },
             "properties": [
+              {
+                "id": "displayName",
+                "value": "读取行数"
+              },
               {
                 "id": "custom.minWidth",
                 "value": 130

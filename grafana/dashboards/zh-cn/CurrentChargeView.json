@@ -1761,6 +1761,10 @@
             },
             "properties": [
               {
+                "id": "displayName",
+                "value": "电流"
+              },
+              {
                 "id": "unit",
                 "value": "amp"
               }
