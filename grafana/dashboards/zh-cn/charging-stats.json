@@ -2248,7 +2248,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n\tROUND(end_battery_level / 5, 0) * 5 AS SOC,\n\tcount(*) AS n\nFROM\n\tcharging_processes\nWHERE\n\t$__timeFilter(end_date)\n\tAND duration_min > 3\n\tAND car_id = $car_id\nGROUP BY\n\tROUND(end_battery_level / 5, 0) * 5\nORDER BY\n\tSOC DESC",
+          "rawSql": "with data as (\n    select id, end_battery_level, end_date, 'Charging Process' as activity\n    from charging_processes cp\n    where car_id = $car_id and $__timeFilter(cp.end_date) and duration_min >= $min_duration\n    union all\n    select d.id, p.battery_level as end_battery_level, end_date, 'Drive' as activity\n    from drives d\n        inner join positions p on d.end_position_id = p.id\n    where d.car_id = $car_id and $__timeFilter(d.end_date)\n),\nflag_consecutive_charges as (\n    select *, lead(activity) over (order by end_date) as next_activity from data\n)\nSELECT\n    ROUND(end_battery_level / 5, 0) * 5 AS SOC,\n    count(*) AS n\nFROM flag_consecutive_charges\nwhere\n    activity = 'Charging Process' and (next_activity != 'Charging Process' or next_activity is null)\nGROUP BY ROUND(end_battery_level / 5, 0) * 5\nORDER BY SOC DESC",
           "refId": "A",
           "sql": {
             "columns": [
@@ -2497,7 +2497,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n\tROUND(start_battery_level / 5, 0) * 5 AS SOC,\n\tcount(*) AS n\nFROM\n\tcharging_processes\nWHERE\n\t$__timeFilter(end_date)\n\tAND duration_min > 3\n\tAND car_id = $car_id\nGROUP BY\n  1\nORDER BY\n\tSOC DESC",
+          "rawSql": "with data as (\n    select id, start_battery_level, end_date, 'Charging Process' as activity\n    from charging_processes cp\n    where car_id = $car_id and $__timeFilter(cp.end_date) and duration_min >= $min_duration\n    union all\n    select d.id, p.battery_level as start_battery_level, end_date, 'Drive' as activity\n    from drives d\n        inner join positions p on d.start_position_id = p.id\n    where d.car_id = $car_id and $__timeFilter(d.end_date)\n),\nflag_consecutive_charges as (\n    select *, lag(activity) over (order by end_date) as previous_activity from data\n)\nSELECT\n    ROUND(start_battery_level / 5, 0) * 5 AS SOC,\n    count(*) AS n\nFROM flag_consecutive_charges\nwhere\n    activity = 'Charging Process' and (previous_activity != 'Charging Process' or previous_activity is null)\nGROUP BY ROUND(start_battery_level / 5, 0) * 5\nORDER BY SOC DESC",
           "refId": "A",
           "sql": {
             "columns": [
@@ -2516,10 +2516,49 @@
             ],
             "limit": 50
           }
+        },
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "TeslaMate"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "hide": false,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  CASE WHEN lfp_battery THEN 100 ELSE 81 END as high,\n  CASE WHEN lfp_battery THEN 100 ELSE 91 END as highest\nfrom cars inner join car_settings on cars.settings_id = car_settings.id\nwhere cars.id = $car_id",
+          "refId": "B"
         }
       ],
       "title": "充电开始时电量",
-      "type": "table"
+      "type": "table",
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "applyTo": {
+              "id": "byName",
+              "options": "soc"
+            },
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "high",
+                "handlerArguments": {
+                  "threshold": {
+                    "color": "yellow"
+                  }
+                },
+                "handlerKey": "threshold1"
+              },
+              {
+                "fieldName": "highest",
+                "handlerKey": "threshold1"
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "datasource": {
@@ -2849,6 +2888,26 @@
         "regex": "",
         "type": "query",
         "regexApplyTo": "value"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "0",
+          "value": "0"
+        },
+        "hide": 0,
+        "label": "充电时长 >=",
+        "name": "min_duration",
+        "options": [
+          {
+            "selected": true,
+            "text": "0",
+            "value": "0"
+          }
+        ],
+        "query": "0",
+        "skipUrlSync": false,
+        "type": "textbox"
       }
     ]
   },
