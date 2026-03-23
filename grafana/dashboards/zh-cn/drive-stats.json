@@ -758,7 +758,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "none"
+                "value": "velocitykmh"
               },
               {
                 "id": "displayName",
@@ -893,7 +893,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "none"
+                "value": "velocitykmh"
               },
               {
                 "id": "displayName",
@@ -1029,7 +1029,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "none"
+                "value": "velocitykmh"
               },
               {
                 "id": "displayName",

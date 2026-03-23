@@ -858,7 +858,7 @@
               },
               {
                 "id": "unit",
-                "value": "none"
+                "value": "m"
               },
               {
                 "id": "decimals",
@@ -957,7 +957,7 @@
               },
               {
                 "id": "unit",
-                "value": "none"
+                "value": "velocitykmh"
               },
               {
                 "id": "decimals",
@@ -1114,7 +1114,7 @@
               },
               {
                 "id": "unit",
-                "value": "none"
+                "value": "velocitykmh"
               },
               {
                 "id": "decimals",

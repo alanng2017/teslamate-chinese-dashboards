@@ -755,7 +755,7 @@
               },
               {
                 "id": "unit",
-                "value": "none"
+                "value": "velocitykmh"
               },
               {
                 "id": "custom.width",

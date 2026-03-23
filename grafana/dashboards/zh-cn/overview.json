@@ -1726,6 +1726,22 @@
                 "value": "功率"
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Charging Voltage [V]"
+            },
+            "properties": [
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 450
+              }
+            ]
           }
         ]
       },
