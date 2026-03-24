@@ -2,13 +2,8 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
   schedule:
     - cron: '0 2 * * 1'  # 每周一凌晨 2 点自动重新构建，拉取最新基础镜像修复漏洞
