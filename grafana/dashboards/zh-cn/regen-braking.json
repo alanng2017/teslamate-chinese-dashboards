@@ -765,17 +765,6 @@
       },
       "title": "每日回收电量(kWh)",
       "type": "timeseries",
-      "transformations": [
-        {
-          "id": "regression",
-          "options": {
-            "modelType": "linear",
-            "xFieldName": "Time",
-            "yFieldName": "每日回收(kWh)",
-            "predictionCount": 100
-          }
-        }
-      ],
       "targets": [
         {
           "datasource": {
@@ -870,17 +859,6 @@
       },
       "title": "每周回收电量(kWh)",
       "type": "timeseries",
-      "transformations": [
-        {
-          "id": "regression",
-          "options": {
-            "modelType": "linear",
-            "xFieldName": "Time",
-            "yFieldName": "每周回收(kWh)",
-            "predictionCount": 100
-          }
-        }
-      ],
       "targets": [
         {
           "datasource": {
@@ -1388,17 +1366,6 @@
       },
       "title": "每周最高回收功率(kW)",
       "type": "timeseries",
-      "transformations": [
-        {
-          "id": "regression",
-          "options": {
-            "modelType": "linear",
-            "xFieldName": "Time",
-            "yFieldName": "每周最高回收功率(kW)",
-            "predictionCount": 100
-          }
-        }
-      ],
       "targets": [
         {
           "datasource": {
