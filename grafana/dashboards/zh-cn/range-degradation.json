@@ -313,17 +313,6 @@
       "description": "每月最高推算满电续航，趋势向下说明电池在退化",
       "title": "每月最高满电续航",
       "type": "timeseries",
-      "transformations": [
-        {
-          "id": "regression",
-          "options": {
-            "modelType": "linear",
-            "xFieldName": "Time",
-            "yFieldName": "月最高满电续航",
-            "predictionCount": 100
-          }
-        }
-      ],
       "targets": [
         {
           "datasource": { "type": "grafana-postgresql-datasource", "uid": "TeslaMate" },
