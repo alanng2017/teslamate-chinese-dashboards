@@ -1286,7 +1286,7 @@
             "location": {
               "mode": "auto"
             },
-            "name": "行驶轨迹",
+            "name": "充电位置",
             "opacity": 1,
             "tooltip": true,
             "type": "route"
