@@ -2,6 +2,13 @@
 
 ## [v1.4.0] - 2026-04-18
 
+### 🔄 同步上游 efficiency 仪表盘改进 (5bf8f82)
+
+- 启用时间选择器（原本被隐藏），默认时间范围 `now-6h` → `now-10y`
+- 4 个面板 SQL 加入 `$__timeFilter(start_date)`：行驶能耗 / 充电能耗 / 记录的距离 / 温度对能耗影响
+- 「能耗 (总计)」面板替换为上游共享 CTE 写法（drives_start_event / charging_processes_start_event ...），含 is_incomplete 守卫，并新增 organize transformation 隐藏中间列
+- 保留本地 slope-adjusted 自定义逻辑和中文别名 `"能耗"`
+
 ### 🐛 时区批量修复（影响 10+ 面板）
 
 - 修正 TeslaMate 朴素 UTC 列被错误当本地时区解读的问题
