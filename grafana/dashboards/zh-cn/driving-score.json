@@ -247,7 +247,7 @@
       "id": 5,
       "type": "stat",
       "title": "回收分",
-      "description": "能量回收比 × 动态乘数（GREATEST(3, avg_speed/20)）：城市 ×3，100 km/h ×5，120 km/h ×6。高速刹车少不再被扣分。所有行程按里程加权。",
+      "description": "能量回收比 × 速度动态乘数（最低 3 倍，速度越高乘数越大）：城市 ×3，100 km/h ×5，120 km/h ×6。高速刹车少不再被扣分。所有行程按里程加权。",
       "gridPos": {"h": 8, "w": 4, "x": 20, "y": 0},
       "fieldConfig": {
         "defaults": {
