@@ -22,6 +22,15 @@
   - 示例：`30天滚动 7.5% 分位（按2小时采样）`
 - 变量 label：`分桶宽度` → `采样间隔`
 
+### 🔧 其他修正（随本次发版一并提交）
+
+- **充电健康管理（charging-health）**：「充电前/后 SOC 分布」SQL 将 100% SOC 合并到 90% 桶（`LEAST(90, FLOOR(x/10)*10)`），避免 100% 单点数据稀疏
+- **省钱分析（cost-savings）**：「预测年度费用」SQL 加入 `AT TIME ZONE 'UTC'`，避免朴素 UTC 列与 `NOW()`（tstz）比较时的时区边界错算
+- **多车对比（vehicle-comparison）**：
+  - 电池健康度表：移除 `WHERE max_cap.capacity IS NOT NULL` 过滤，显示所有车辆（空数据车辆显示 NULL）
+  - 每公里电费表：移除 `WHERE d_stats.total_km > 0` 过滤，显示所有车辆
+  - 电池健康度步进阈值：黄色 160 → 200 / 红色 200 → 300（UI 配色调优）
+
 ---
 
 ## [v1.4.0] - 2026-04-18
