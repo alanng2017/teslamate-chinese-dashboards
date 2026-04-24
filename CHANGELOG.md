@@ -1,5 +1,29 @@
 # 更新日志
 
+## [v1.4.1] - 2026-04-24
+
+### 🐛 时区 Bug 修复
+
+- **哨兵耗电（sentry-drain）** 第 8 面板「最近停车区间」时间列修正
+  - 错误：`TO_CHAR(s.end_date AT TIME ZONE 'Asia/Shanghai', ...)` 把朴素 UTC 列当上海时区解读
+  - 正确：`TO_CHAR((s.end_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone'), ...)`
+
+### 📊 单位显示优化（15 个面板）
+
+- 统一移除 Grafana 自动换算单位（`lengthkm` / `lengthm` / `kwatth`），改用 `unit: none` + 标题/displayName 手动标注
+- 避免 "28 Mm"（应为 28000 km）、"2 K"（应为 2034）等错误渲染
+- 影响仪表盘：overview / CurrentDriveView / trip / range-degradation / annual-summary / driving-patterns / regen-braking / ChargingCostsStats / charging-stats / DCChargingCurvesByCarrier / battery-health / drive-stats / drive-details (internal)
+
+### 🔤 电量曲线（charge-level）文案修复
+
+- 修复列别名硬编码 `"30日"` 和 `"2h"`，改为动态变量 `${days_moving_average_percentiles}` 和 `${bucket_width:text}`
+  - 用户调整「采样间隔」或「滚动天数」变量后，图例文案现在会同步更新
+- 术语调整：`分桶` → `采样`，`日` → `天`（更口语易懂）
+  - 示例：`30天滚动 7.5% 分位（按2小时采样）`
+- 变量 label：`分桶宽度` → `采样间隔`
+
+---
+
 ## [v1.4.0] - 2026-04-18
 
 ### 🔄 同步上游 efficiency 仪表盘改进 (5bf8f82)
