@@ -52,11 +52,14 @@ docker exec -i teslamate-database-1 psql -U teslamate teslamate \
 - **TROUBLESHOOTING.md** — 「地图不显示」FAQ 加 v1.4.2 下拉框切换；新增「切换高德/Google 路网后标记偏移」FAQ（解释自动纠偏行为）
 - **CLAUDE.md** — 完善 push 前评估流程
 
-### 🔧 新增脚本
+### 🔧 用户/维护者新增文件
 
+**用户运行:**
+- `sql/install-coord-functions.sql` — PostgreSQL 坐标转换函数定义（升级时一次性灌入）
+
+**仓库维护者一次性迁移工具（普通用户不用跑）:**
 - `scripts/add-map-source-switcher.py` — 批量给仪表盘加 `map_url` 变量
 - `scripts/wrap-coord-with-map-fn.py` — 批量包装 SQL 的 lat/lng 引用
-- `sql/install-coord-functions.sql` — PostgreSQL 坐标转换函数定义
 
 ### ⚠️ 已知行为
 

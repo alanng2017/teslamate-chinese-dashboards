@@ -35,12 +35,18 @@ fi
 # 1. git pull
 # ============================================================
 echo -e "${BLUE}[1/4] 拉取最新代码...${NC}"
-if git diff --quiet && git diff --cached --quiet; then
-    git pull --rebase
-else
-    echo -e "${YELLOW}⚠ 检测到本地未提交的修改，跳过 git pull${NC}"
-    echo "  如果想拉取最新代码，先 git stash 保存或 git commit 提交本地改动。"
+if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+    echo -e "${RED}✗ 本地有未提交的修改，无法 git pull${NC}"
+    echo ""
+    echo "  请先处理本地改动（任选一）:"
+    echo "    git stash                # 暂存到栈，pull 完后 git stash pop"
+    echo "    git commit -am 'wip'     # 提交"
+    echo "    git restore .            # 放弃所有未提交改动（危险）"
+    echo ""
+    echo "  处理后重新运行: bash scripts/upgrade.sh"
+    exit 1
 fi
+git pull --rebase
 
 # ============================================================
 # 2. 检测 PostgreSQL 容器名

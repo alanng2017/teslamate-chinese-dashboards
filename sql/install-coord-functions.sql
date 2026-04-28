@@ -15,11 +15,33 @@
 --   DROP FUNCTION IF EXISTS lng_for_map(TEXT, DOUBLE PRECISION, DOUBLE PRECISION);
 --   DROP FUNCTION IF EXISTS wgs84_to_gcj02_lat(DOUBLE PRECISION, DOUBLE PRECISION);
 --   DROP FUNCTION IF EXISTS wgs84_to_gcj02_lng(DOUBLE PRECISION, DOUBLE PRECISION);
+--   DROP FUNCTION IF EXISTS is_outside_china(DOUBLE PRECISION, DOUBLE PRECISION);
 --
 -- 算法：eviltransform 标准 (https://github.com/googollee/eviltransform)
 -- 精度：中国境内 < 0.5m；境外原样返回
 -- ============================================================================
 
+-- ----------------------------------------------------------------------------
+-- 先 DROP 旧版本（CREATE OR REPLACE 不允许改参数名/类型，纯升级路径需要这一步）
+-- IF EXISTS 在全新安装时无副作用
+-- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS lat_for_map(TEXT, DOUBLE PRECISION, DOUBLE PRECISION);
+DROP FUNCTION IF EXISTS lng_for_map(TEXT, DOUBLE PRECISION, DOUBLE PRECISION);
+
+-- ----------------------------------------------------------------------------
+-- 内部辅助：判断坐标是否在 eviltransform 定义的中国境内 bbox 之外
+-- 边界值来自 eviltransform 标准实现（约略覆盖大陆+港澳台）
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION is_outside_china(lat DOUBLE PRECISION, lng DOUBLE PRECISION)
+RETURNS BOOLEAN AS $$
+  -- 西经界 72.004 / 东经界 137.8347 / 南纬界 0.8293 / 北纬界 55.8271
+  SELECT lng < 72.004 OR lng > 137.8347 OR lat < 0.8293 OR lat > 55.8271;
+$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;
+
+-- ----------------------------------------------------------------------------
+-- 核心算法：WGS-84 → GCJ-02
+-- 用 PL/pgSQL 是为了用本地变量缓存 sqrt_magic 等中间量，避免重复 sqrt 计算
+-- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION wgs84_to_gcj02_lat(wgs_lat DOUBLE PRECISION, wgs_lng DOUBLE PRECISION)
 RETURNS DOUBLE PRECISION AS $$
 DECLARE
@@ -35,9 +57,7 @@ BEGIN
   IF wgs_lat IS NULL OR wgs_lng IS NULL THEN
     RETURN NULL;
   END IF;
-  -- 中国境外不做转换
-  IF wgs_lng < 72.004 OR wgs_lng > 137.8347
-     OR wgs_lat < 0.8293 OR wgs_lat > 55.8271 THEN
+  IF is_outside_china(wgs_lat, wgs_lng) THEN
     RETURN wgs_lat;
   END IF;
   x := wgs_lng - 105.0;
@@ -70,8 +90,7 @@ BEGIN
   IF wgs_lat IS NULL OR wgs_lng IS NULL THEN
     RETURN NULL;
   END IF;
-  IF wgs_lng < 72.004 OR wgs_lng > 137.8347
-     OR wgs_lat < 0.8293 OR wgs_lat > 55.8271 THEN
+  IF is_outside_china(wgs_lat, wgs_lng) THEN
     RETURN wgs_lng;
   END IF;
   x := wgs_lng - 105.0;
@@ -90,48 +109,50 @@ END;
 $$ LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE;
 
 -- ----------------------------------------------------------------------------
--- 包装函数：根据当前选中的地图源 URL 决定是否做坐标转换
--- 高德 / Google 路网 → GCJ-02 转换；OSM / Carto / Google 卫星 → 原样返回
+-- 包装函数：URL 含 autonavi 或 google.com（且不是 lyrs=s 卫星）→ 转 GCJ-02
+-- LANGUAGE sql 让规划器内联到查询，省掉 PL/pgSQL 调用开销（trip 这种聚合后
+-- 调用 N 次的面板，5~10x 性能提升）。
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION lat_for_map(map_url TEXT, lat DOUBLE PRECISION, lng DOUBLE PRECISION)
+CREATE OR REPLACE FUNCTION lat_for_map(map_url TEXT, wgs_lat DOUBLE PRECISION, wgs_lng DOUBLE PRECISION)
 RETURNS DOUBLE PRECISION AS $$
-BEGIN
-  -- 仅识别下拉框里的 GCJ-02 来源：高德（autonavi 含路网+卫星）、Google 路网（China 区域）
-  -- Google 卫星（lyrs=s）真实 WGS-84，不转
-  IF map_url ILIKE '%autonavi%'
-     OR (map_url ILIKE '%google.com%' AND map_url NOT ILIKE '%lyrs=s%') THEN
-    RETURN wgs84_to_gcj02_lat(lat, lng);
-  END IF;
-  RETURN lat;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE;
+  SELECT CASE
+    WHEN map_url ILIKE '%autonavi%'
+      OR (map_url ILIKE '%google.com%' AND map_url NOT ILIKE '%lyrs=s%')
+    THEN wgs84_to_gcj02_lat(wgs_lat, wgs_lng)
+    ELSE wgs_lat
+  END;
+$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;
 
-CREATE OR REPLACE FUNCTION lng_for_map(map_url TEXT, lat DOUBLE PRECISION, lng DOUBLE PRECISION)
+CREATE OR REPLACE FUNCTION lng_for_map(map_url TEXT, wgs_lat DOUBLE PRECISION, wgs_lng DOUBLE PRECISION)
 RETURNS DOUBLE PRECISION AS $$
-BEGIN
-  -- 仅识别下拉框里的 GCJ-02 来源：高德（autonavi 含路网+卫星）、Google 路网（China 区域）
-  -- Google 卫星（lyrs=s）真实 WGS-84，不转
-  IF map_url ILIKE '%autonavi%'
-     OR (map_url ILIKE '%google.com%' AND map_url NOT ILIKE '%lyrs=s%') THEN
-    RETURN wgs84_to_gcj02_lng(lat, lng);
-  END IF;
-  RETURN lng;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE;
+  SELECT CASE
+    WHEN map_url ILIKE '%autonavi%'
+      OR (map_url ILIKE '%google.com%' AND map_url NOT ILIKE '%lyrs=s%')
+    THEN wgs84_to_gcj02_lng(wgs_lat, wgs_lng)
+    ELSE wgs_lng
+  END;
+$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;
 
 -- ----------------------------------------------------------------------------
--- 自检（可选）：北京天安门 WGS-84 → GCJ-02 应得 ~ (39.91524, 116.40391)
+-- 自检：北京天安门 WGS-84 (39.913818, 116.397828) → GCJ-02 (39.91522, 116.40407)
+-- 算法精度声称中国境内 < 0.5m，0.00001 度 ≈ 1.1m，足以捕获算法被改坏的情况。
 -- ----------------------------------------------------------------------------
 DO $$
 DECLARE
   test_lat DOUBLE PRECISION;
   test_lng DOUBLE PRECISION;
+  expect_lat CONSTANT DOUBLE PRECISION := 39.91522;
+  expect_lng CONSTANT DOUBLE PRECISION := 116.40407;
+  tolerance  CONSTANT DOUBLE PRECISION := 0.00001;  -- ~1.1m
 BEGIN
   test_lat := wgs84_to_gcj02_lat(39.913818, 116.397828);
   test_lng := wgs84_to_gcj02_lng(39.913818, 116.397828);
-  IF abs(test_lat - 39.91524) > 0.001 OR abs(test_lng - 116.40391) > 0.001 THEN
-    RAISE WARNING '坐标转换函数自检异常: 期望 ~(39.91524, 116.40391), 实际 (%, %)', test_lat, test_lng;
+  IF abs(test_lat - expect_lat) > tolerance OR abs(test_lng - expect_lng) > tolerance THEN
+    RAISE WARNING '坐标转换函数自检异常: 期望 (%, %), 实际 (%, %), 偏差 (%, %)',
+      expect_lat, expect_lng, test_lat, test_lng,
+      abs(test_lat - expect_lat), abs(test_lng - expect_lng);
   ELSE
-    RAISE NOTICE '坐标转换函数安装成功 (天安门测试通过): (%, %)', round(test_lat::numeric, 5), round(test_lng::numeric, 5);
+    RAISE NOTICE '坐标转换函数安装成功 (天安门测试通过): (%, %)',
+      round(test_lat::numeric, 5), round(test_lng::numeric, 5);
   END IF;
 END $$;

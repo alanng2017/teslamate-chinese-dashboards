@@ -3,6 +3,12 @@
 # 5分钟完成 TeslaMate + 中文 Grafana Dashboard 部署
 
 set -e
+set -o pipefail
+
+# 强制 docker compose project name = teslamate，
+# 让容器名稳定为 teslamate-database-1 / teslamate-grafana-1 等，
+# 与 README/QUICKSTART/TROUBLESHOOTING 文档里所有 docker exec 命令一致
+export COMPOSE_PROJECT_NAME=teslamate
 
 echo "=============================================="
 echo "  TeslaMate 中文 Dashboard 一键安装脚本"
@@ -129,10 +135,6 @@ echo ""
 echo "🚀 启动服务（首次启动需要下载镜像，请耐心等待 2-5 分钟）..."
 echo "   如果长时间卡在拉取镜像，请参考文末说明配置 Docker 镜像代理。"
 docker compose up -d
-
-echo ""
-echo "⏳ 等待服务初始化（约 90 秒）..."
-sleep 90
 
 # 检查服务状态
 echo ""

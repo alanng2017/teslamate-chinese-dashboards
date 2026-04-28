@@ -374,7 +374,7 @@ docker exec -i teslamate-database-1 psql -U teslamate teslamate \
 1. **强刷浏览器**：Ctrl+Shift+R（Windows）/ Cmd+Shift+R（Mac），清掉 Grafana 前端缓存
 2. **重启 Grafana 容器**：`docker compose restart grafana`，触发仪表盘 provisioning 重载
 3. **确认你打开的是含地图的仪表盘**：只有 9 个仪表盘有此下拉框（CurrentChargeView / CurrentDriveView / CurrentState / TrackingDrives / charging-stats / trip / visited / charge-details / drive-details）
-4. **确认仓库是 v1.4.2+**：`git log --oneline | head -3` 应能看到 `feat(maps): GCJ-02 auto-transform`
+4. **确认仓库是 v1.4.2+**：`head -3 CHANGELOG.md` 应显示 `## [v1.4.2]` 或更新版本
 
 ### ❌ 装 PostgreSQL 坐标转换函数报错
 
@@ -387,7 +387,7 @@ docker exec -i teslamate-database-1 psql -U teslamate teslamate \
 | `No such container: teslamate-database-1` | 容器名不对 | 先 `docker ps` 找你的 PostgreSQL 容器名（一般是 `teslamate-database-1` / `teslamate_database_1` 或 `postgres`），用真实名替换 |
 | `database "teslamate" does not exist` | 数据库名不对 | TeslaMate 默认 DB 名就叫 teslamate；如自定义过，把命令里的 `teslamate teslamate` 第二个换成你的实际 DB 名 |
 | `permission denied` | 用户权限不足 | TeslaMate 默认 superuser 是 `teslamate`；如改过，把 `-U teslamate` 替换 |
-| `function pi() does not exist` | PostgreSQL 版本太低 | 函数依赖 PostgreSQL 9.0+ 内置 pi()；TeslaMate 官方镜像使用 PostgreSQL 16+，不应触发 |
+| `function pi() does not exist` | PostgreSQL 版本太低 | 函数依赖 PostgreSQL 9.0+ 内置 pi()；TeslaMate 官方镜像满足，正常不会触发 |
 
 **确认装好的快速测试：**
 ```bash
