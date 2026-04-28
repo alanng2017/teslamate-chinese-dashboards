@@ -350,14 +350,41 @@ docker compose restart grafana
 
 ### 一步：装一次 PostgreSQL 坐标转换函数
 
+#### 新装用户
+
+跟着「第三步：一键安装」走完后，回到本项目仓库目录，执行：
+
 ```bash
 docker exec -i teslamate-database-1 psql -U teslamate teslamate \
   < sql/install-coord-functions.sql
 ```
 
-执行后会看到 `坐标转换函数安装成功 (天安门测试通过): (39.91522, 116.40407)` 自检通过提示。一次性安装，后续所有仪表盘自动生效。
+#### 升级用户
+
+```bash
+cd ~/teslamate-chinese     # 你的项目克隆目录
+git pull                   # 拉取 v1.4.2+ 最新代码
+docker exec -i teslamate-database-1 psql -U teslamate teslamate \
+  < sql/install-coord-functions.sql
+docker compose restart grafana
+```
+
+#### 容器名不一定叫 `teslamate-database-1`
+
+⚠️ 上面命令里写的 `teslamate-database-1` 是默认容器名（用本仓库 simple-deploy.sh 或目录叫 `teslamate-chinese` 的 docker-compose.yml 都会生成这个名字）。如果你改过项目目录名，先确认：
+
+```bash
+docker ps --format '{{.Names}}' | grep -i database
+```
+
+把输出的真实容器名替换到命令里。
+
+#### 装成功的标志
+
+执行成功会看到 `坐标转换函数安装成功 (天安门测试通过): (39.91522, 116.40407)` 自检通过提示。这是一次性安装，后续所有仪表盘自动生效。
 
 > 卸载（如需）：函数文件顶部注释里有 DROP 语句。
+> 装失败排查：见 [TROUBLESHOOTING.md](TROUBLESHOOTING.md) 「装 PostgreSQL 坐标转换函数报错」章节。
 
 ### 二步：在仪表盘上切换地图源
 

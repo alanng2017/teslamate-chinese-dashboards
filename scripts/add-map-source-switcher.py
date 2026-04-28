@@ -31,13 +31,23 @@ TARGET_FILES = [
 OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 AMAP_URL = "https://wprd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}"
 AMAP_SAT_URL = "https://webst01.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}"
+GOOGLE_URL = "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+GOOGLE_SAT_URL = "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
 CARTO_URL = "https://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png"
+
+DESCRIPTION = (
+    "🌏 地图源切换（中文版独有）— 6 种瓦片一键切换。"
+    "中国大陆推荐：高德地图（路网详细、加载快）或 高德卫星。"
+    "海外/翻墙：谷歌地图（路网）或 谷歌卫星。"
+    "默认 OpenStreetMap（全球通用）。"
+    "选「高德」或「谷歌路网」时自动做 GCJ-02 坐标纠偏，车辆轨迹精准贴合道路。"
+)
 
 
 def make_map_url_variable():
     return {
         "current": {"selected": False, "text": "OpenStreetMap", "value": OSM_URL},
-        "description": "切换地图瓦片源。注：高德为 GCJ-02 坐标系，TeslaMate 存的是 WGS-84，标记会偏移 100~700m（瓦片本身正确）。",
+        "description": DESCRIPTION,
         "hide": 0,
         "includeAll": False,
         "label": "地图源",
@@ -47,9 +57,18 @@ def make_map_url_variable():
             {"selected": True, "text": "OpenStreetMap", "value": OSM_URL},
             {"selected": False, "text": "高德地图", "value": AMAP_URL},
             {"selected": False, "text": "高德卫星", "value": AMAP_SAT_URL},
+            {"selected": False, "text": "谷歌地图", "value": GOOGLE_URL},
+            {"selected": False, "text": "谷歌卫星", "value": GOOGLE_SAT_URL},
             {"selected": False, "text": "Carto 浅色", "value": CARTO_URL},
         ],
-        "query": f"OpenStreetMap : {OSM_URL},高德地图 : {AMAP_URL},高德卫星 : {AMAP_SAT_URL},Carto 浅色 : {CARTO_URL}",
+        "query": (
+            f"OpenStreetMap : {OSM_URL},"
+            f"高德地图 : {AMAP_URL},"
+            f"高德卫星 : {AMAP_SAT_URL},"
+            f"谷歌地图 : {GOOGLE_URL},"
+            f"谷歌卫星 : {GOOGLE_SAT_URL},"
+            f"Carto 浅色 : {CARTO_URL}"
+        ),
         "queryValue": "",
         "skipUrlSync": False,
         "type": "custom",
@@ -83,6 +102,8 @@ def update_dashboard(path: Path) -> tuple[bool, str]:
             "config": {
                 "attribution": "${map_url:text} contributors",
                 "url": "${map_url}",
+                "minZoom": 3,
+                "maxZoom": 18,
             },
             "name": "Layer 0",
             "type": "xyz",

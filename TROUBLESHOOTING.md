@@ -343,21 +343,60 @@ OpenStreetMap 地图服务在国内可能受限。
 
 **解决方法 1（v1.4.2+ 推荐）：使用顶部「地图源」下拉框切换到高德地图**
 
-打开任一含地图的仪表盘，顶部下拉框「地图源」选「高德地图」即可（瓦片直连国内 CDN，无需代理）。注意高德是 GCJ-02 坐标系，标记会偏移 100~700m，详见 [QUICKSTART.md 进阶配置](QUICKSTART.md#进阶配置切换地图源v142-新增下拉框)。
+打开任一含地图的仪表盘，顶部下拉框「地图源」选「高德地图」即可（瓦片直连国内 CDN，无需代理）。详见 [QUICKSTART.md](QUICKSTART.md) 「地图源切换 + 自动 GCJ-02 坐标纠偏」章节。
 
 **解决方法 2：自建瓦片代理**
 1. 在可访问海外的服务器上架设 OSM 瓦片代理
-2. 在 Grafana 仪表盘顶部「地图源」下拉框中（v1.4.2+）选「自定义 URL」（或编辑面板 → Map layers → Base layer → URL template）填入代理地址
+2. 编辑面板 → Map layers → Base layer → URL template 填入代理地址
 
-### ❌ 切换高德地图后车辆标记偏离道路 100~700 米
+### ❌ 切换高德/谷歌路网后车辆标记偏离道路 100~700 米
 
-**原因：坐标系不一致**
+**原因：坐标系差异 + 未装 PostgreSQL 坐标转换函数**
 
-高德是 **GCJ-02（火星坐标系）**，TeslaMate 记录的是 **WGS-84（GPS 原始）**。两者在中国境内有 100~700 米偏差。
+高德 / 谷歌中国区域路网瓦片用 **GCJ-02（火星坐标系）**，TeslaMate 记录的是 **WGS-84（GPS 原始）**。两者在中国境内偏差 100~700 米。
 
-**解决：**
-- 在意精度 → 用 OSM 或 Carto（都是 WGS-84，无偏差）
-- 必须用高德且要精度 → 看 [QUICKSTART.md 进阶选项 B](QUICKSTART.md#进阶选项-b-sql-端坐标纠偏精度最佳)（SQL 端转换坐标，误差 < 0.5m）
+**解决：装一次 v1.4.2+ 的坐标转换函数（一行命令）：**
+
+```bash
+docker exec -i teslamate-database-1 psql -U teslamate teslamate \
+  < sql/install-coord-functions.sql
+```
+
+执行后会显示「坐标转换函数安装成功 (天安门测试通过): (39.91522, 116.40407)」自检通过提示。装完刷新仪表盘（Ctrl+Shift+R），轨迹会自动贴合道路。
+
+> 不在意精度的话，切回 OSM / Carto / 谷歌卫星即可（都是 WGS-84，无偏差）。
+
+### ❌ Dashboard 顶部「地图源」下拉框看不到
+
+**症状**：升级到 v1.4.2 后，仪表盘顶部下拉框区域空白或只看到旧变量
+
+**排查步骤：**
+1. **强刷浏览器**：Ctrl+Shift+R（Windows）/ Cmd+Shift+R（Mac），清掉 Grafana 前端缓存
+2. **重启 Grafana 容器**：`docker compose restart grafana`，触发仪表盘 provisioning 重载
+3. **确认你打开的是含地图的仪表盘**：只有 9 个仪表盘有此下拉框（CurrentChargeView / CurrentDriveView / CurrentState / TrackingDrives / charging-stats / trip / visited / charge-details / drive-details）
+4. **确认仓库是 v1.4.2+**：`git log --oneline | head -3` 应能看到 `feat(maps): GCJ-02 auto-transform`
+
+### ❌ 装 PostgreSQL 坐标转换函数报错
+
+**症状**：执行 `docker exec -i teslamate-database-1 psql ...` 时报错
+
+**常见原因 + 解决：**
+
+| 报错关键字 | 原因 | 解决 |
+|----------|------|------|
+| `No such container: teslamate-database-1` | 容器名不对 | 先 `docker ps` 找你的 PostgreSQL 容器名（一般是 `teslamate-database-1` / `teslamate_database_1` 或 `postgres`），用真实名替换 |
+| `database "teslamate" does not exist` | 数据库名不对 | TeslaMate 默认 DB 名就叫 teslamate；如自定义过，把命令里的 `teslamate teslamate` 第二个换成你的实际 DB 名 |
+| `permission denied` | 用户权限不足 | TeslaMate 默认 superuser 是 `teslamate`；如改过，把 `-U teslamate` 替换 |
+| `function pi() does not exist` | PostgreSQL 版本太低 | 函数依赖 PostgreSQL 9.0+ 内置 pi()；TeslaMate 官方镜像使用 PostgreSQL 16+，不应触发 |
+
+**确认装好的快速测试：**
+```bash
+docker exec teslamate-database-1 psql -U teslamate -d teslamate \
+  -c "SELECT lat_for_map('autonavi.com', 39.913818, 116.397828);"
+# 应输出 39.9152217625129（不是原值 39.913818）
+```
+
+输出原值说明函数没装上或 URL 不匹配；输出转换后的值说明工作正常。
 
 ---
 
