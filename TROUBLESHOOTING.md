@@ -269,18 +269,17 @@ curl -I https://auth.tesla.cn
 
 换无痕模式 / 换浏览器 / 清 `auth.tesla.com` 和 `auth.tesla.cn` 的 cookie 后重试。
 
-#### 5. 🆘 终极方案：用「Auth for Tesla」第三方 App 拿 Token
+#### 5. ⭐ 推荐方案：换用「Auth for Tesla」App（最简单）
 
-以上都不行的话，跳过 TeslaMate 的服务器代登流程，**直接在你手机上登录拿 Token**：
+**国内 Tesla 圈早就把这条作为首选**，不需要改 docker-compose.yml 也不用配中国区 API：
 
 1. 手机 App Store 搜「**Auth for Tesla**」（iOS / Android 都有）
-2. 在 App 里登录你的 Tesla 账号（成功率比 TeslaMate 服务器代登高很多，因为手机端原本就常常登着 Tesla App）
-3. App 会显示 `access_token` 和 `refresh_token` 两段长字符串
-4. 回 TeslaMate 登录页，找「**Use existing tokens**」/「使用现有 Token」折叠选项，把两段 token 粘贴进去
+2. App 里登录 Tesla 账号 → 显示 `access_token` 和 `refresh_token` 两段字符串
+3. 回 TeslaMate 登录页，展开「**Use existing tokens** / 使用现有 Token」折叠选项，粘贴两段 token
 
-详细工作流见 [QUICKSTART.md - 备用方案：Auth for Tesla](QUICKSTART.md) 章节。这是国内 Tesla 圈/TeslaFi 圈的成熟救场方法。
+> ⚠️ Auth for Tesla 是社区开源工具，**只在你信任的设备上用**（自己的 iPhone / Android）。绑定后 TeslaMate 用 refresh_token 自动续期。
 
-> ⚠️ Auth for Tesla 是社区开源工具，仅在你信任的设备上用。绑定后 TeslaMate 会用 refresh_token 自动续期，不需要每天手动换。
+完整步骤 + 注意事项见 [QUICKSTART.md 第四步「方法 A：用 Auth for Tesla App 拿 Token」](QUICKSTART.md)。
 
 ---
 
@@ -517,13 +516,17 @@ sudo firewall-cmd --reload
 
 ### ❌ 从外网访问（公网 IP）
 
-直接暴露 TeslaMate 到公网有安全风险，**推荐方案**：
+⚠️ **直接把 TeslaMate `:4000` 暴露到公网 = 任何人能看到你的车辆位置/历史行程**。Grafana `:3000` 默认 admin/admin 也是一秒被攻破。**强烈建议先看 [QUICKSTART.md - 云服务器场景：安全防护必读](QUICKSTART.md#云服务器场景安全防护必读场景-b-用户)** 完整 5 级防护清单。
 
-1. **Tailscale / ZeroTier**（最简单）：组建虚拟局域网，像访问本地一样访问
-2. **Cloudflare Tunnel**：免费，无需公网 IP，有 HTTPS
-3. **反向代理**（Nginx/Caddy）：配置 HTTPS + 基础认证
+简版快速选项（详细操作见上述 QUICKSTART 章节）：
+1. **Tailscale / ZeroTier**（推荐新手）：虚拟内网，云服务器关掉公网端口，本地像局域网访问
+2. **Cloudflare Tunnel**：免费 + 自动 HTTPS，需要域名
+3. **反向代理（Nginx/Caddy）+ Basic Auth + HTTPS**：最灵活，需运维经验
 
-不推荐直接将 TeslaMate 端口暴露到公网。
+无论选哪种，都要：
+- ✅ Grafana 默认密码改掉（admin/admin → 强密码）
+- ✅ 云服务器安全组里 4000/3000 不要 `0.0.0.0/0` 全开放
+- ✅ docker-compose.yml 端口绑定改 `127.0.0.1:` 前缀（如果配反向代理）
 
 ---
 
