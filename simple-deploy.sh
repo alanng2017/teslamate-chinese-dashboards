@@ -10,6 +10,11 @@ set -o pipefail
 # 与 README/QUICKSTART/TROUBLESHOOTING 文档里所有 docker exec 命令一致
 export COMPOSE_PROJECT_NAME=teslamate
 
+# SQL 文件拉取的 git ref（默认 main 跟 :latest 镜像同步）。
+# 想锁固定版本：SQL_REF=v1.6.2 bash simple-deploy.sh（详见 README「SQL 远程拉取的信任模型」）
+SQL_REF="${SQL_REF:-main}"
+SQL_BASE="https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/${SQL_REF}/sql"
+
 echo "=============================================="
 echo "  TeslaMate 中文 Dashboard 一键安装脚本"
 echo "=============================================="
@@ -79,8 +84,6 @@ if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
     done
     echo ""
     if [ "$DB_READY" -eq 1 ]; then
-        SQL_BASE="https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/sql"
-
         echo "  → 安装/更新坐标转换函数"
         if curl -fsSL "$SQL_BASE/install-coord-functions.sql" | docker exec -i "$DB_CONTAINER" psql -U teslamate -d teslamate >/dev/null 2>&1; then
             echo "  ✓ 坐标函数已更新（地图源切换/纠偏）"
@@ -238,7 +241,6 @@ for i in $(seq 1 30); do
 done
 
 if [ "$DB_READY" -eq 1 ]; then
-    SQL_BASE="https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/sql"
     SQL_OK=1
 
     if curl -fsSL "$SQL_BASE/install-coord-functions.sql" | docker exec -i "$DB_CONTAINER" psql -U teslamate -d teslamate >/dev/null 2>&1; then

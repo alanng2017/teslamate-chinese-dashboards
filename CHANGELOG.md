@@ -1,5 +1,54 @@
 # 更新日志
 
+## [v1.6.2] - 2026-05-03
+
+### 🔒 安全：SQL 远程拉取支持锁固定版本
+
+`simple-deploy.sh` 和 `migrate-from-official.sh` 现在都支持环境变量锁版本拉取 SQL：
+
+```bash
+SQL_REF=v1.6.2 bash simple-deploy.sh
+REPO_REF=v1.6.2 bash migrate-from-official.sh
+```
+
+**为什么有用**：维护者 GitHub 账号被盗时，攻击者推恶意 SQL 到 main，所有用 main ref 的 watchtower 用户下次升级会拉到 → psql 执行 → 数据库层 RCE。锁固定 tag 后此风险被消除（除非攻击者能改已发布 tag，难度高）。
+
+**默认仍是 main**（跟 :latest 镜像同步，零摩擦）。需要的用户主动锁。详见 README 新增章节「[🔒 SQL 远程拉取的信任模型](README.md#sql-trust-model)」。
+
+### 🛠️ 工程债：抽 `scripts/check-sql-trio.sh` 校验脚本
+
+新增 `scripts/check-sql-trio.sh`：grep 5 处用户可见入口（simple-deploy / migrate / upgrade / README / QUICKSTART）必须都引用 SQL 三件套（install-coord-functions / install-tou / install-indexes），漏改直接报错退出。
+
+**首次跑就抓到一个真 bug**：QUICKSTART.md 详细文档列表漏了 `install-indexes`，已修。
+
+发版前规范：先跑 `bash scripts/check-sql-trio.sh` 验证，再 push。
+
+### 📚 文档
+
+- README 方法 C 加 `REF=main` 注释，明确 SQL 拉取的 ref 可替换为具体 tag
+- QUICKSTART 详细文档列表补 `install-indexes.sql` 引用
+
+### ✅ 上游 bug port — 0 工作量（已合并）
+
+实测核对了原本计划要 port 的 3 个上游 bug fix：
+
+- ✅ [#5198](https://github.com/teslamate-org/teslamate/pull/5198) cost_mileage 除零修复 → 我们 fork 的 trip.json 已含 `nullif()` 包裹
+- ✅ [#5199](https://github.com/teslamate-org/teslamate/pull/5199) 无 Geofence 时 Charges/Drives 加载失败 → charges.json + drives.json 已含 `geofences_incl_all_option` CTE
+- ✅ [2026-03-22 incomplete data 处理](https://github.com/teslamate-org/teslamate/commit/00ab26adb998d919c552c2968341b22bf36c4819) → charging-stats / statistics / trip 三个 dashboard 都已含 `is_incomplete` 标记
+
+应该是之前 v3.0 升级时随同合并，**用户已经受益**。
+
+### 🚫 不做：AP/FSD 占比统计
+
+完整验证后确认**国内家用方案不可行**（详见维护者笔记）：
+- ❌ Tesla Fleet API REST `vehicle_data` 不暴露 `lane_assist_level` 字段（实测）
+- ❌ Fleet Telemetry push stream 暴露 `lane_assist_level` + `SelfDrivingMilesSinceReset`，但需公网 HTTPS endpoint + mTLS client cert 验证
+- ❌ Cloudflare Free Plan 不支持 mTLS server-side（API Shield 是 Pro+ 功能 $20/月起）
+- ❌ Owner API + pedal 推断 — Owner API 不返回 pedal 字段
+- ❌ speed 推断 — 不真实，混 CC + 老司机干扰
+
+**等以下任一发生再回头**：Tesla 把字段加到 REST、TeslaMate 主线切 Fleet API、有人主动 PR `tesla-can-web-2` 跨项目集成。
+
 ## [v1.6.1] - 2026-05-02
 
 ### 🆕 性能优化：positions 表索引（来自上游 issue [#5306](https://github.com/teslamate-org/teslamate/issues/5306)）

@@ -670,6 +670,7 @@ python3 scripts/wrap-cost-with-tou-view.py --revert
 ### 详细文档
 
 - [`sql/install-tou.sql`](sql/install-tou.sql) — 表/函数/触发器/视图全部 schema
+- [`sql/install-indexes.sql`](sql/install-indexes.sql) — 性能索引（v1.6.1+）
 - [`scripts/setup-tou.sh`](scripts/setup-tou.sh) — CLI 命令清单
 - 「⚡ 分时电价配置」仪表盘内置审计面板 — 时段空缺/重叠/月份缺失自动检测
 
