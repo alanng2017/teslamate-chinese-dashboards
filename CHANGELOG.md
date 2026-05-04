@@ -2,25 +2,26 @@
 
 ## [v1.6.4] - 2026-05-04
 
-### 🔒 安全 + 用户体验补丁
+### 🔒 安全修复
 
-v1.6.3 发版后做了一轮 3 路用户视角审计（群晖小白 / 云服务器程序员 / macOS 笔记本小白），抓到一批潜在问题，本版集中修。
+- **新装时数据库密码随机生成**（之前硬编码 `password`，公网暴露 5432 会被默认密码拖库）
+- **`docker-compose.yml` 创建时自动 `chmod 600`**（文件含 `ENCRYPTION_KEY` + DB 密码 + Tesla token，避免共享服务器其他用户读到）
 
-**🔴 安全 / 阻塞级修复**：
+### 🐛 修复
 
-- **`simple-deploy.sh` 数据库密码不再硬编码 `password`** —— 改为 `openssl rand -base64 24` 随机生成。云服务器若误把 5432 暴露到公网，再不会被默认密码拖库
-- **`simple-deploy.sh` 给 `docker-compose.yml` 设 mode 600** —— 文件含 `ENCRYPTION_KEY` + DB 密码 + 后续 Tesla token，避免多用户云服务器其他用户能读
-- **`simple-deploy.sh` 加 `docker info` 实测** —— 群晖 SSH 用户没 docker 组权限会卡死，现在一开头就给出群晖专用提示（DSM 开 root SSH 或用 Container Manager GUI 部署）
-- **`simple-deploy.sh` 兼容 docker-compose v1** —— 旧版云镜像（CentOS 7 / Ubuntu 18）默认带 v1，之前脚本中段所有 `docker compose` 命令会全挂；现在动态检测后用 `$DC` 变量
+- **文档路径前后不一致**：`simple-deploy.sh` 创建的目录是 `~/teslamate-chinese`，但 `QUICKSTART.md` / `TROUBLESHOOTING.md` / `README.md` 多处写成 `~/teslamate-chinese-dashboards`，用户按文档 `cd` 必报错。统一为 `~/teslamate-chinese`
+- **macOS 用户跑文档第一条命令报 `wget: command not found`**：`README.md` / `QUICKSTART.md` / `simple-deploy.sh` 所有 `wget` 替换为 `curl`
+- **群晖 SSH 用户跑 `simple-deploy.sh` 因无 docker 组权限静默失败**：增加 `docker info` 实测，给出 DSM 专用修法（控制面板开 root SSH 或用 Container Manager GUI 部署）
+- **CentOS 7 / Ubuntu 18 老镜像跑 `simple-deploy.sh` 中段失败**：自动检测 `docker compose`（v2）和 `docker-compose`（v1），脚本兼容两种
 
-**🟡 用户体验 / 工程债修复**：
+### 🆕 改进
 
-- **路径不一致全文档统一**（issue 隐性 bug）—— `simple-deploy.sh` 创建 `~/teslamate-chinese`，但 `QUICKSTART.md` / `TROUBLESHOOTING.md` / `README.md` 多处写 `~/teslamate-chinese-dashboards`，用户照文档 cd 必报错。统一全部为 `~/teslamate-chinese`
-- **`wget` → `curl`** —— macOS 默认没有 `wget`，Mac 用户跑第一条命令就 `command not found`。`README.md` / `QUICKSTART.md` / `simple-deploy.sh` 全部 `wget` 改为 `curl -fsSL` / `curl -fsSLO`
-- **`simple-deploy.sh` 跑完打印 `ENCRYPTION_KEY` + DB 密码 + 备份提醒** —— 之前只默默写到 `docker-compose.yml`，用户跑完关 SSH 直接错过，未来迁移 / 重装时悔不当初。现在结束语红字突出三件事：KEY / DB_PASS / Grafana admin 改密提醒
-- **`simple-deploy.sh` 群晖 NAS 安装 Docker 提示** —— 加「Container Manager」套件名指引
+- **`simple-deploy.sh` 跑完打印 `ENCRYPTION_KEY` + 数据库密码 + 备份提醒**：避免错过这两个关键密钥导致未来迁移失败
+- **群晖 NAS 用户**：`docker not found` 错误提示加「Container Manager」套件名指引
 
-**❌ 不破坏兼容**：升级到 v1.6.4 不需要任何额外动作。已有用户的 `docker-compose.yml` + 数据卷不动。
+### 兼容性
+
+升级到 v1.6.4 不需要任何额外动作。已有 `docker-compose.yml` 和数据卷不动。
 
 ---
 
