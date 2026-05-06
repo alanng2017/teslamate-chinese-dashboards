@@ -867,7 +867,10 @@ docker compose exec -T database pg_dump -U teslamate teslamate > pg-pre-upgrade.
 docker compose down
 
 # 3. 删旧的命名卷（数据文件在这里，PG 大版本不兼容必须删）
-docker volume rm teslamate_teslamate-db
+# 自动找 PG 数据卷名：项目目录不叫 teslamate 时卷名前缀会变
+DB_VOL=$(docker volume ls -q | grep teslamate-db | head -1)
+echo "将删除卷：$DB_VOL"
+docker volume rm "$DB_VOL"
 # ⚠ 这一步会删除整个数据库文件，没有 dump 千万别跑！
 
 # 4. 修改 docker-compose.yml 把 image 改成新版本：

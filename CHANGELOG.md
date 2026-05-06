@@ -2,9 +2,7 @@
 
 ## [v1.6.7] - 2026-05-06
 
-### 🐛 修复（v1.6.6 同源 + 更广 4 路审计）
-
-跟 v1.6.6 同一天发，因为 4 路文档审计（TROUBLESHOOTING / QUICKSTART / README / DASHBOARD_MAP 各开一个 agent 对照官方）找出 15 条真 bug + 3 条改善。按「audit 出的问题不分批发」规则一次修完。
+### 🐛 修复
 
 **1. 备份恢复孪生残留 bug**（`TROUBLESHOOTING.md` 第「数据库备份与恢复」段）：跟 v1.6.6 修的「整机迁移」同一根问题——简易备份恢复段也漏 `DROP SCHEMA private CASCADE` + `CREATE EXTENSION cube/earthdistance`。修后跟官方完全对齐。
 
