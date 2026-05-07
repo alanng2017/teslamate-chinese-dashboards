@@ -1,8 +1,17 @@
-# TeslaMate 中文 Grafana Dashboard
+# TeslaMate 全中文版 Grafana 仪表盘
 
-**TeslaMate Chinese Grafana Dashboards** — Simplified Chinese localization for TeslaMate, ready to use out of the box.
+> 给中国 Tesla 车主用的 TeslaMate 数据可视化方案 — 46 个深度汉化仪表盘 + 国内地图源 + 分时电价 + Docker 一键部署。
 
-简体中文汉化版 TeslaMate Grafana Dashboard - 开箱即用 | 46 个仪表盘 99% 汉化 | 支持 Docker 一键部署
+**和官方原版的差异**：
+
+- 🌏 **国内可用** — 9 个地图面板支持高德/谷歌切换，自动 GCJ-02 坐标纠偏（轨迹精准贴道路）
+- ⚡ **分时电价系统** — 配峰平谷电价 + 充电桩性价比榜 + 重算历史充电（v1.5.0+）
+- 📊 **12 个原创分析仪表盘** — 年度报告 / 省钱分析 / 充电健康 / 停车掉电 / 出行规律 / 动能回收 / 驾驶评分 / 多车对比等
+- 🆕 **3 个上游精选移植**（v1.7.0）— 回本分析（电车比油车几年回本）/ 续航衰减 / 速度温度热力图
+- 🇨🇳 **本地化优化** — Docker Hub 镜像直拉无墙、PostgreSQL 18 + Grafana 12 跟齐官方
+- ✅ **开箱即用** — `bash simple-deploy.sh` 5 分钟装好，自动检测云主机并加固安全
+
+> **English speakers**: this is a localization for Chinese-speaking Tesla owners. For the original project see [teslamate-org/teslamate](https://github.com/teslamate-org/teslamate).
 
 ---
 
