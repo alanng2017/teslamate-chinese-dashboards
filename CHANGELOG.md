@@ -1,5 +1,33 @@
 # 更新日志
 
+## [v1.7.1] - 2026-05-08
+
+### 🐛 多车主用户「车辆标准能耗」面板 No data
+
+`CurrentDriveView`「车辆标准能耗」SQL 用 `FROM settings WHERE id = $car_id` — `settings` 表只有一行（id=1），多车主 car_id≠1 时永远不返回。改 `FROM cars WHERE id = $car_id`。同时把 SQL alias 从 `as "效率"` 改回 `as "efficiency_$length_unit"` 跟 v1.6.8 全局原则一致。
+
+### 🐛 SpeedTemperature 仪表盘 SQL 报「/」语法错（issue #17）
+
+dashboard JSON 残留了上游 jheredianet 导出时的脏 `current` 值（测试车名 `Maximus` / 测试域名 `infoinnova.net` / 测试电池容量 `58.47...`），多车主用户的 Grafana 12.4 看到这些跟自己 DB 对不上时进入变量初始化 race condition，仪表盘顶部下拉框不渲染 + 下游 panel 把字面量 `$datapoints` 直接发给 PG 报「/」语法错。
+
+修法：
+- 清 `car_id` / `base_url` / `current_capacity` 三个 query 类变量的脏 current（让 Grafana 启动时按用户 DB 重新查）
+- 预填 `datapoints` / `speed_step` / `temperature_step` 三个 custom 类变量的 options 数组（不依赖运行时解析 query 字段）
+
+### 🐛 tire-pressure 仪表盘内网 IP 信息泄露
+
+dashboard JSON 残留 `base_url.current = "http://192.168.2.249:4000"`（导出者的内网地址）。改 `current: {}` 让 Grafana 重新查。
+
+### 🛠️ 新增 dashboard 脏值 lint
+
+`scripts/check-dashboards-clean.sh` 扫所有 dashboard JSON 的 `templating.current` 字段，发现 IP / 域名 / 计算结果残留就阻止发版。已接进 push 前 checklist。
+
+### 兼容性
+
+镜像 LABEL 1.7.0 → 1.7.1。**升级方法**：`docker compose pull && docker compose up -d`，仪表盘 10 秒内自动重载。**已经撞 issue #17 的用户**：升级镜像后 SpeedTemperature 应能正常加载；如果 Grafana state 还卡住，清缓存 `docker volume rm teslamate_teslamate-grafana-data && docker compose up -d`（不影响 TeslaMate 数据）。
+
+---
+
 ## [v1.7.0] - 2026-05-07
 
 ### 🆕 移植 jheredianet 上游 3 个仪表盘（中文化适配）

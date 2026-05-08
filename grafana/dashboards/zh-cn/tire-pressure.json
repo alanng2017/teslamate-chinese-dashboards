@@ -479,11 +479,7 @@
         "regexApplyTo": "value"
       },
       {
-        "current": {
-          "selected": false,
-          "text": "http://192.168.2.249:4000",
-          "value": "http://192.168.2.249:4000"
-        },
+        "current": {},
         "datasource": {
           "type": "grafana-postgresql-datasource",
           "uid": "TeslaMate"

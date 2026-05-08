@@ -2554,10 +2554,7 @@
   "templating": {
     "list": [
       {
-        "current": {
-          "text": "Maximus",
-          "value": "1"
-        },
+        "current": {},
         "datasource": {
           "type": "grafana-postgresql-datasource",
           "uid": "TeslaMate"
@@ -2574,10 +2571,7 @@
         "type": "query"
       },
       {
-        "current": {
-          "text": "58.470371193877554",
-          "value": "58.470371193877554"
-        },
+        "current": {},
         "datasource": {
           "type": "grafana-postgresql-datasource",
           "uid": "TeslaMate"
@@ -2595,13 +2589,35 @@
       },
       {
         "current": {
-          "text": "100",
-          "value": "100"
+          "text": "100%",
+          "value": "100",
+          "selected": true
         },
         "includeAll": false,
         "label": "采样数据点",
         "name": "datapoints",
-        "options": [],
+        "options": [
+          {
+            "selected": true,
+            "text": "100%",
+            "value": "100"
+          },
+          {
+            "selected": false,
+            "text": "50%",
+            "value": "50"
+          },
+          {
+            "selected": false,
+            "text": "20%",
+            "value": "20"
+          },
+          {
+            "selected": false,
+            "text": "10%",
+            "value": "10"
+          }
+        ],
         "query": "100% : 100, 50% : 50, 20% : 20, 10% : 10",
         "type": "custom",
         "valuesFormat": "csv"
@@ -2609,12 +2625,29 @@
       {
         "current": {
           "text": "10",
-          "value": "10"
+          "value": "10",
+          "selected": true
         },
         "includeAll": false,
         "label": "速度档距",
         "name": "speed_step",
-        "options": [],
+        "options": [
+          {
+            "selected": false,
+            "text": "20",
+            "value": "20"
+          },
+          {
+            "selected": true,
+            "text": "10",
+            "value": "10"
+          },
+          {
+            "selected": false,
+            "text": "5",
+            "value": "5"
+          }
+        ],
         "query": "20, 10, 5",
         "type": "custom",
         "valuesFormat": "csv"
@@ -2622,12 +2655,29 @@
       {
         "current": {
           "text": "5",
-          "value": "5"
+          "value": "5",
+          "selected": true
         },
         "includeAll": false,
         "label": "温度档距",
         "name": "temperature_step",
-        "options": [],
+        "options": [
+          {
+            "selected": false,
+            "text": "10",
+            "value": "10"
+          },
+          {
+            "selected": true,
+            "text": "5",
+            "value": "5"
+          },
+          {
+            "selected": false,
+            "text": "2.5",
+            "value": "2.5"
+          }
+        ],
         "query": "10, 5, 2.5",
         "type": "custom",
         "valuesFormat": "csv"
@@ -2673,10 +2723,7 @@
         "type": "query"
       },
       {
-        "current": {
-          "text": "https://teslamate.infoinnova.net",
-          "value": "https://teslamate.infoinnova.net"
-        },
+        "current": {},
         "datasource": {
           "type": "grafana-postgresql-datasource",
           "uid": "TeslaMate"
