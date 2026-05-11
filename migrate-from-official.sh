@@ -433,6 +433,8 @@ echo
 echo "📌 下一步（可选）："
 echo "   • 配分时电价：仪表盘里点「⚡ 分时电价配置」→「🌆 一键导入城市模板」"
 echo "   • 地图改国内瓦片：仪表盘地图右上角下拉框选高德/谷歌"
+echo "   • 行程列表地址列空 = nominatim.openstreetmap.org 国内访问超时。"
+echo "     修法见 TROUBLESHOOTING.md#nominatim-proxy（加一行 NOMINATIM_PROXY env 即可）"
 echo
 echo "🔙 想回滚？"
 echo "   cp \"$BACKUP_FILE\" \"$COMPOSE_FILE\""

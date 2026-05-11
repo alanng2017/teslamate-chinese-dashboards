@@ -409,17 +409,23 @@ docker compose restart grafana
 
 **TeslaMate 3.0 起，国内账号通常什么都不用改**。登录方式是粘贴 Access Token / Refresh Token（推荐用 [tesla_auth 桌面版](https://github.com/adriankumpf/tesla_auth/releases) 拿，TeslaMate 主作者维护，跨平台），TeslaMate 会从 token 自动识别中国区，所有 API/streaming 请求自动走 `*.cloud.tesla.cn`。详见 [QUICKSTART.md 第四步](QUICKSTART.md#step-4)。
 
-仅在以下情况需要手动设置环境变量：
+**⚠️ 国内用户高频踩坑：行程列表地址列空**
+
+TeslaMate 的反向地理编码用 OpenStreetMap Nominatim，国内访问常超时，导致大量 drive 的 `start_address_id` 为 NULL，行程列表地址列空。修法是加一行 `NOMINATIM_PROXY` env（**仅代理 Nominatim 流量，不影响 Tesla API**）：
 
 ```yaml
 services:
   teslamate:
     environment:
       - TZ=Asia/Shanghai
+      # 国内用户强烈推荐：让 Nominatim 反查走代理（HTTP only，仅一行，详见下方链接）
+      # - NOMINATIM_PROXY=http://你的代理IP:7890
       # 走自建 Fleet API 网关 / 反向代理时才需要：
       # - TESLA_API_HOST=https://your-proxy.example.com
       # - TESLA_WSS_HOST=wss://your-proxy.example.com
 ```
+
+`NOMINATIM_PROXY` 完整说明 + 排错命令 + 代理地址填写指引：[TROUBLESHOOTING.md「Nominatim 国内反查超时」](TROUBLESHOOTING.md#nominatim-proxy)。
 
 完整环境变量参考：[TeslaMate 官方文档](https://docs.teslamate.org/docs/configuration/environment_variables)
 

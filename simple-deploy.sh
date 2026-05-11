@@ -553,5 +553,7 @@ echo "     然后执行: sudo systemctl daemon-reload && sudo systemctl restart 
 echo "  2. TeslaMate 3.0 起仅支持「粘贴 Token」登录，先在手机装 Auth for Tesla App"
 echo "     生成 token，再到 http://你的IP:4000 粘贴 Access Token / Refresh Token"
 echo "     国内账号不需要改环境变量（TeslaMate 会从 token 自动识别）"
-echo "  3. 配置文件路径: $INSTALL_DIR/docker-compose.yml"
+echo "  3. 行程列表地址列经常空 = nominatim.openstreetmap.org 国内访问超时。"
+echo "     修法见 TROUBLESHOOTING.md#nominatim-proxy（加一行 NOMINATIM_PROXY env 即可）"
+echo "  4. 配置文件路径: $INSTALL_DIR/docker-compose.yml"
 echo ""

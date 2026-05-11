@@ -647,6 +647,65 @@ docker compose restart teslamate
 
 ## 🌐 网络问题
 
+<a id="nominatim-proxy"></a>
+
+### 🇨🇳 行程列表地址列空 / 地图地名乱 — Nominatim 国内反查超时（中国大陆用户高频问题）
+
+**症状**：
+- 「行程列表」仪表盘起始地址 / 结束地址列大量空，只有"收藏点"地址有显示
+- `SELECT COUNT(*) FROM addresses` 数量远小于 `drives` 数量
+
+**根因**：TeslaMate 用 OpenStreetMap Nominatim（`nominatim.openstreetmap.org`）做反向地理编码，**国内访问常超时**。反查失败的 drive 的 `start_address_id` / `end_address_id` 永远 NULL，地址列就空了。
+
+**确诊**：
+
+```bash
+docker exec teslamate-database-1 psql -U teslamate -d teslamate -c "SELECT COUNT(*) AS total, COUNT(start_address_id) AS with_start_addr, COUNT(end_address_id) AS with_end_addr, COUNT(start_geofence_id) AS in_geofence FROM drives WHERE car_id = 1;"
+```
+
+`with_start_addr` 远小于 `total` 就是这个问题。
+
+**修复**：给 TeslaMate 容器配 Nominatim 代理（**TeslaMate 专用 env，只一行，HTTP only，只代理 Nominatim 流量，不影响 Tesla API**），在 `docker-compose.yml` 的 `teslamate` service 里加：
+
+```yaml
+services:
+  teslamate:
+    environment:
+      # ... 已有 ENCRYPTION_KEY / TZ 等 ...
+      - NOMINATIM_PROXY=http://代理地址:端口
+```
+
+代理地址按场景填：
+- NAS 上跑 Clash docker 容器：`http://<Clash容器名>:7890`（需同 docker network）或 `http://<NAS内网IP>:7890`
+- NAS 宿主机跑代理：`http://<NAS内网IP>:7890`（推荐，最稳）
+- 路由器 / 软路由：`http://<路由器IP>:7890`
+
+**注意**：
+- 仅支持 **HTTP**（不是 HTTPS / SOCKS5）。Clash 默认 HTTP 端口是 7890（不是 SOCKS5 的 7891）
+- 不需要配 `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` 等通用 env —— 这个变量只代理 Nominatim 一处
+- 不影响 Tesla API（设计意图：国内 Tesla API 需直连不能走代理）
+
+改完重启 + 验证：
+
+```bash
+docker compose up -d teslamate
+docker compose logs -f teslamate | grep -iE "nominatim|geocod"
+```
+
+应该看到 `Geocoding ... → 城市/街道` 成功而不是 timeout / connection refused。
+
+**等待恢复**：
+
+TeslaMate 启动时扫 `start_address_id IS NULL` 的 drive 重新入反查队列。几小时到一天，`addresses` 表会从几百涨到几千，行程列表地址列陆续补全。监控进度：
+
+```bash
+docker exec teslamate-database-1 psql -U teslamate -d teslamate -c "SELECT COUNT(*) FROM addresses;"
+```
+
+数字一直涨就是在跑。
+
+---
+
 ### ❌ 国内无法访问 ghcr.io 镜像
 
 见上方「镜像拉取失败（国内网络）」章节。
