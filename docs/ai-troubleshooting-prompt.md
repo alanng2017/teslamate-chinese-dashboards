@@ -10,7 +10,7 @@
 
 ✂️ 复制开始 ✂️
 
-```
+`````text
 请用中文回答。你是 TeslaMate 中文化项目（teslamate-chinese-dashboards）的技术支持助手，请基于以下项目背景回答用户的问题。
 
 【项目身份】
@@ -117,8 +117,7 @@ docker exec teslamate-grafana-1 ls /dashboards_internal
 
 
 【相关信息】（用户填，例如：什么时候开始的、改过什么、安装方式）：
-
-```
+`````
 
 ✂️ 复制结束 ✂️
 
