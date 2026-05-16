@@ -1,5 +1,79 @@
 # 更新日志
 
+## [v1.7.4] - 2026-05-16
+
+### 🐛 统一费用口径（让现有 dashboard 用上 v1.5 引入的 `effective_cost()` 函数）
+
+之前部分费用统计 dashboard SQL 直接读 `charging_processes.cost`，没经过分时电价（TOU）旁路表。结果：在「⚡ 分时电价配置」面板 21（默认电价）或「充电记录」面板 22（单笔单价）设过单价后，旁路表 `charging_processes_tou_cost.cost_tou` 已写入真实值，但这些 dashboard 显示的仍是原始 `cp.cost`，跟「⚡ 分时电价配置」里的费用对不上。
+
+本版把 6 个含费用统计的 dashboard SQL 里 `cp.cost` / `c.cost` / `sum(cost)` 全部改成 `effective_cost(id, cost)`：
+
+- 旁路表有 TOU 计算结果 → 显示真实分时电价费用
+- 旁路表无结果 → 自动回退原始 `cp.cost`
+
+涉及 dashboard：
+
+- AmortizationTracker（车辆摊销追踪）
+- ChargingCostsStats（充电费用统计）
+- charging-stats（充电统计）
+- station-ranking（充电站排名）
+- statistics（统计）
+- vehicle-comparison（多车对比）
+
+**不影响：**
+
+- 「⚡ 分时电价配置」面板 8（家充对账）保留 `cp.cost` 原值显示，用于对比
+- 「充电记录」panel 22（单笔单价 form）仍读/写 `cp.cost` 不变
+
+### 🐛 修复 tou-config「最近 10 笔家充对账」面板时间列偏 8 小时
+
+原 SQL 用 `(start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')::timestamp(0)` 返回朴素 timestamp，Grafana 接到朴素时间戳当 UTC 二次转换 → 中国用户早 7 点充电的记录显示成下午 15 点（+8 小时）。
+
+修法：
+
+- 改用 `date_trunc('second', start_date AT TIME ZONE 'UTC')` 返回 `timestamp with time zone`，Grafana 按 dashboard timezone 自动转换
+- 同面板另一处 `NOW() AT TIME ZONE 'Asia/Shanghai'` hardcode 也改成 `$__timezone` 自适应
+
+### 📊 drives（行程）仪表盘小改动
+
+- 4 个 stat 面板加 `text.titleSize: 18, valueSize: 32`，移动端 / 小屏显示更清晰
+- 行程列表 SELECT 加 `duration_min` 数值列（override 设为隐藏），用于按时长数值排序，不在表格展示
+
+### 🔧 修复：Dockerfile LABEL version 长期滞后
+
+v1.7.2 / v1.7.3 发版漏改 Dockerfile `LABEL version`（一直停在 `1.7.1`），本版补回到 `1.7.4`，跟实际版本对齐。
+
+### ⚠️ 升级警告（重要）
+
+**必须用 `scripts/upgrade.sh` 升级**。仅 `docker compose pull && up -d` 不会装 / 更新 SQL 函数 —— 本版 dashboard 调用 `effective_cost()`，PG 库里没装这个函数会报：
+
+```
+function effective_cost(integer, numeric) does not exist
+```
+
+正确升级方式：
+
+```bash
+cd teslamate-chinese-dashboards
+git pull
+bash scripts/upgrade.sh
+```
+
+如果你已经 `docker compose pull` 升过了 / 不想跑完整 upgrade，单独补 SQL 三件套即可（若你的 PG 容器名不是 `teslamate-database-1`，先用 `docker ps | grep postgres` 查实际名字再替换）：
+
+```bash
+for f in install-coord-functions install-tou install-indexes; do
+  curl -fsSL "https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/v1.7.4/sql/$f.sql" \
+    | docker exec -i teslamate-database-1 psql -U teslamate -d teslamate
+done
+```
+
+**Watchtower / 自动镜像升级用户特别注意：** Watchtower 只拉新镜像，不会跑 SQL。新镜像启动后 dashboard 立刻引用 `effective_cost()`，没装该函数会全部报错。**必须手动跑一次上面那段 `for f in ...` SQL 装载**，否则费用 dashboard 全部报错。
+
+`effective_cost` 函数定义在 `install-tou.sql`，没装该函数升级后费用 dashboard 全部报错。
+
+---
+
 ## [v1.7.3] - 2026-05-11
 
 ### 🆕 新功能：默认电价（解决 issue #21 — 未关联收藏点的充电费用空）
