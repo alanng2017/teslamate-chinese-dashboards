@@ -1,5 +1,33 @@
 # 更新日志
 
+## [v1.7.6] - 2026-05-24
+
+### 🐛 同步上游修复：无 Geofence 时充电/行程仪表盘无法加载
+
+**症状：** 全新部署或地理围栏被清空后，「充电记录」「行程记录」两个仪表盘顶部下拉框初始化失败，整个面板报 No data。
+
+**根因：** Grafana 12.4.0 之后，内置 "All" 选项在 variable 查询无返回值时初始化异常（[grafana/grafana#119793](https://github.com/grafana/grafana/issues/119793)）。我们原本用「显式插入 `'All' as __text, -1 as __value` 行」的老方案绕过，这套方案在新版 Grafana 上仍会因初始值为空触发同一 bug。
+
+**修法（同步上游 [teslamate-org/teslamate#5335](https://github.com/teslamate-org/teslamate/pull/5335)）：**
+
+- `charges.json` / `drives.json` 的 `geofence` variable 改用 placeholder 方案：无 Geofence 时插入「占位（请先添加地理围栏）」占位行，让 Grafana 内置 `includeAll: true` 重新正常工作。
+- SQL 用法（`'${geofence:pipe}' = '-1' OR geofence_id in ($geofence)`）和 `allValue: "-1"` 保持不变 —— 仪表盘所有面板的 SQL 不动，零兼容性风险。
+
+### 🧹 清理：移除重复的「续航衰减」仪表盘
+
+`RangeDegradation.json`（v1.7.0 从 jheredianet 移植的「续航衰减」，uid=`jchmRiqUfXgm`）与自创的 `range-degradation.json`（「续航退化分析」，uid=`range_degrad_cn`）功能重叠。后者经 11 次精调修复（浏览器崩溃、阈值误导、低电量外推噪声等用户反馈），保留为主版本；前者删除避免侧边栏混淆。
+
+### 📊 上游核实结论（已自然规避，无需动）
+
+借这次同步上游的机会，逐一核实了上游近期 4 项 dashboard 修复对我们的影响：
+
+| 上游修复 | 我们状态 |
+|---|---|
+| #5198 trip.json `cost_mileage` 除零 | ✅ TOU 改造时已加 `nullif()` 保护 |
+| 00ab26a charging-stats/statistics/trip incomplete data 处理 | ✅ 此前同步上游时已移植 `is_incomplete` 标记 |
+| #5335 Geofence Placeholder | ⚠️ 真受影响 → **本版修复** |
+| 5f530c5 dataLink timestamps `FLOOR/CEIL` 替代 `ROUND` | ⚠️ 仅 CurrentChargeView/CurrentDriveView 受 1ms 边界影响，暂留待后续 |
+
 ## [v1.7.5] - 2026-05-17
 
 ### 🐛 关键修复：TOU 分时电价费用偏低 5-15%（用户报告）
