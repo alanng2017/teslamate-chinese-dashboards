@@ -386,11 +386,13 @@ sudo systemctl restart docker
 ## 🔄 更新方法
 
 ### 使用镜像方式
-镜像会自动更新，只需重新拉取：
+重新拉取镜像即可更新 Grafana 和仪表盘：
 ```bash
 docker compose pull grafana
 docker compose up -d grafana
 ```
+
+> ⚠️ 以上**只更新 Grafana 镜像和仪表盘**。若某版改动了 SQL（坐标函数 / 分时电价 / 索引），还要重装 SQL 三件套，否则分时电价 / 地图等面板会报错 —— 一键安装用户直接重跑 `simple-deploy.sh`（自动进升级模式装 SQL），其他用户见上方 [升级方法 A/B/C/D](#upgrade-v16)。纯仪表盘版本（如 v1.7.9）用上面两条命令即可。
 
 > ⚠️ **如果更新后 Dashboard 仍显示旧版本**，说明 Grafana 数据卷有缓存残留，执行以下命令重置（车辆数据不受影响）：
 > ```bash
