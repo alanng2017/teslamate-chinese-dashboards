@@ -15,7 +15,7 @@
 偶尔的哨兵、以及车单纯不休眠。TeslaMate 没有「有没有人在车里」的数据，
 `is_climate_on` 也只说空调开没开、说不清是谁开的。实测换不同假设，「哨兵」
 能从 5 跳到 130 kWh —— 说明分不准。所以本表不强行标哨兵，改在明细表里给出
-每次的「室温 / 制热制冷」，让用户自己判断（制热=冷天还开空调，基本是有人在车里）。
+每次的「空调约开多久 / 室外温度 / 制热制冷判断」，让用户自己判断（制热=冷天还开空调，基本是有人在车里）。
 
 能量口径：kWh = (rated_range 起 − rated_range 止) × cars.efficiency。
 
@@ -27,8 +27,10 @@ from pathlib import Path
 DS = {"type": "grafana-postgresql-datasource", "uid": "TeslaMate"}
 
 MIN_DRIVE_RANGE_DROP_KM = 0.1
-SLEEP_MIN = 15            # 停车 <= 此分钟内休眠 = 正常休眠；超过 = 醒着
+SLEEP_MIN = 15               # 停车 <= 此分钟内休眠 = 正常休眠；超过 = 醒着
 THR_H = round(SLEEP_MIN / 60.0, 4)
+CLIMATE_ON_FRAC_MIN = 0.15  # 醒着期间空调开启采样占比 < 此值 → 判「空调基本没开·可能哨兵」
+HEAT_MARGIN_C = 2           # 车内比车外暖 > 此温差(°C) → 判「制热·可能有人在车」（过热保护只制冷）
 
 STD_LINKS = [
     {"asDropdown": True, "icon": "external link", "tags": ["tesla"],
@@ -40,6 +42,8 @@ STD_LINKS = [
      "tags": [], "targetBlank": True, "title": "中文文档", "tooltip": "",
      "type": "link", "url": "https://github.com/wjsall/teslamate-chinese-dashboards"},
 ]
+
+EFF_CTE = "eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id)"
 
 GAPS_CTE = """  gaps AS (
     SELECT d.end_date AS ps, d.end_rated_range_km AS r0,
@@ -78,14 +82,14 @@ WHERE d.car_id = $car_id AND d.end_date IS NOT NULL
 
 
 def sql_kpi_park():
-    return f"""WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),
+    return f"""WITH {EFF_CTE},
 {GAPS_CTE}
 SELECT ROUND((SUM(drop_km) * (SELECT e FROM eff))::numeric, 1) AS v
 FROM clean WHERE $__timeFilter(ps)"""
 
 
 def sql_kpi_park_pct():
-    return f"""WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),
+    return f"""WITH {EFF_CTE},
   drv AS (
     SELECT SUM((start_rated_range_km - end_rated_range_km) * (SELECT e FROM eff)) AS kwh
     FROM drives WHERE car_id = $car_id AND end_date IS NOT NULL
@@ -94,17 +98,19 @@ def sql_kpi_park_pct():
   ),
 {GAPS_CTE},
   pk AS (SELECT SUM(drop_km) * (SELECT e FROM eff) AS kwh FROM clean WHERE $__timeFilter(ps))
-SELECT ROUND(((SELECT kwh FROM pk) / NULLIF((SELECT kwh FROM drv) + (SELECT kwh FROM pk), 0) * 100)::numeric, 1) AS v"""
+SELECT ROUND((COALESCE((SELECT kwh FROM pk), 0)
+              / NULLIF(COALESCE((SELECT kwh FROM drv), 0) + COALESCE((SELECT kwh FROM pk), 0), 0) * 100)::numeric, 1) AS v"""
 
 
 def sql_kpi_awake_count():
-    return f"""WITH {GAPS_CTE.replace('  gaps', 'gaps', 1)},
+    return f"""WITH {EFF_CTE},
+{GAPS_CTE},
 {PARK_ONLINE_CTE}
 SELECT COUNT(*) AS v FROM park_online WHERE max_online_h > {THR_H} AND $__timeFilter(ps)"""
 
 
 def sql_monthly_drive_park():
-    return f"""WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),
+    return f"""WITH {EFF_CTE},
   drive_m AS (
     SELECT date_trunc('month', timezone('UTC', d.start_date), '$__timezone') AS m,
            SUM((d.start_rated_range_km - d.end_rated_range_km) * (SELECT e FROM eff)) AS kwh
@@ -128,7 +134,7 @@ ORDER BY 1"""
 
 
 def sql_monthly_awake_split():
-    return f"""WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),
+    return f"""WITH {EFF_CTE},
 {GAPS_CTE},
 {PARK_ONLINE_CTE},
   m AS (
@@ -144,7 +150,7 @@ FROM m ORDER BY 1"""
 
 
 def sql_pie_overall():
-    return f"""WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),
+    return f"""WITH {EFF_CTE},
   drv AS (
     SELECT SUM((start_rated_range_km - end_rated_range_km) * (SELECT e FROM eff)) AS kwh
     FROM drives WHERE car_id = $car_id AND end_date IS NOT NULL
@@ -153,27 +159,34 @@ def sql_pie_overall():
   ),
 {GAPS_CTE}
 SELECT
-  ROUND((SELECT kwh FROM drv)::numeric, 1) AS "🚗 行车",
+  ROUND(COALESCE((SELECT kwh FROM drv), 0)::numeric, 1) AS "🚗 行车",
   ROUND((COALESCE((SELECT SUM(drop_km) FROM clean WHERE $__timeFilter(ps)), 0) * (SELECT e FROM eff))::numeric, 1) AS "🅿️ 停车" """
 
 
 def sql_awake_table():
-    return f"""WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),
+    return f"""WITH {EFF_CTE},
 {GAPS_CTE},
-{PARK_ONLINE_CTE}
+{PARK_ONLINE_CTE},
+  top AS (   -- 先过滤+排序+限 30，再去 positions（否则 LATERAL 会对所有醒着段都扫，大库会卡）
+    SELECT ps, pe, drop_km, max_online_h
+    FROM park_online
+    WHERE max_online_h > {THR_H} AND $__timeFilter(ps)
+    ORDER BY drop_km DESC
+    LIMIT 30
+  )
 SELECT
   to_char(timezone('$__timezone', timezone('UTC', ps)), 'YYYY-MM-DD HH24:MI') AS "停车开始",
   ROUND((EXTRACT(EPOCH FROM (pe - ps)) / 3600)::numeric, 1) AS "停车时长(h)",
   ROUND((max_online_h * 60)::numeric, 0) AS "醒着(分钟)",
   ROUND(((cs.n_clim::numeric / NULLIF(cs.n, 0)) * max_online_h * 60)::numeric, 0) AS "空调约开(分钟)",
-  ROUND(cs.out_t::numeric, 0) AS "室温℃",
+  ROUND(cs.out_t::numeric, 0) AS "室外温度℃",
   CASE
-    WHEN cs.n_clim::float / NULLIF(cs.n, 0) < 0.15 THEN '空调基本没开·可能哨兵'
-    WHEN cs.in_clim > cs.out_clim + 2 THEN '制热·可能有人在车'
+    WHEN cs.n_clim::float / NULLIF(cs.n, 0) < {CLIMATE_ON_FRAC_MIN} THEN '空调基本没开·可能哨兵'
+    WHEN cs.in_clim > cs.out_clim + {HEAT_MARGIN_C} THEN '制热·可能有人在车'
     ELSE '制冷·过热或开AC'
   END AS "判断",
   ROUND((drop_km * (SELECT e FROM eff))::numeric, 2) AS "停车电耗(kWh)"
-FROM park_online
+FROM top
 LEFT JOIN LATERAL (
   SELECT COUNT(*) AS n,
          COUNT(*) FILTER (WHERE p.is_climate_on) AS n_clim,
@@ -181,11 +194,9 @@ LEFT JOIN LATERAL (
          AVG(p.inside_temp)  FILTER (WHERE p.is_climate_on) AS in_clim,
          AVG(p.outside_temp) FILTER (WHERE p.is_climate_on) AS out_clim
   FROM positions p
-  WHERE p.car_id = $car_id AND p.date >= park_online.ps AND p.date <= park_online.pe
+  WHERE p.car_id = $car_id AND p.date >= top.ps AND p.date <= top.pe
 ) cs ON TRUE
-WHERE max_online_h > {THR_H} AND $__timeFilter(ps)
-ORDER BY drop_km DESC
-LIMIT 30"""
+ORDER BY drop_km DESC"""
 
 
 # ───────────────────────── panel 构造 ─────────────────────────
@@ -304,8 +315,8 @@ NOTE = (
     "## ⚡ 行车 vs 停车能耗（月度）\n"
     f"每月用电分 **🚗 行车** / **🅿️ 停车**；停车再分 **☀️ 醒着掉电**（停 >{SLEEP_MIN} 分钟没休眠）/ "
     "**😴 休眠掉电**（车待机休眠时的正常耗电）。\n"
-    "> 「醒着掉电」混了坐车里、空调、预热、偶尔哨兵，分不清。判断哨兵看下方明细表的 **「空调状态」**："
-    "制热≈有人在车，制冷≈过热/A/C，空调关≈可能哨兵。"
+    "> 「醒着掉电」混了坐车里、空调、预热、偶尔哨兵，分不清。判断哨兵看下方明细表的 **「空调约开」和「判断」**："
+    "空调没怎么开但车长时间醒着≈可能哨兵，制热≈有人在车，制冷≈过热/A/C。"
 )
 
 
@@ -325,8 +336,8 @@ def build_panels():
     P.append(stacked_bar(8, "🅿️ 月度停车拆分：醒着掉电 vs 休眠掉电 (kWh)", sql_monthly_awake_split(),
                          {"x": 0, "y": 17, "w": 24, "h": 9},
                          colors=[("☀️ 醒着掉电", "red"), ("😴 休眠掉电", "blue")],
-                         description="醒着掉电 = 停车 >15 分钟没休眠时掉的电（你坐车里/空调/预热/哨兵的混合）；休眠掉电 = 车正常休眠待机时的耗电。"))
-    P.append(table_panel(9, "🔍 醒着停车明细（停 >15 分钟没休眠）",
+                         description=f"醒着掉电 = 停车 >{SLEEP_MIN} 分钟没休眠时掉的电（你坐车里/空调/预热/哨兵的混合）；休眠掉电 = 车正常休眠待机时的耗电。"))
+    P.append(table_panel(9, f"🔍 醒着停车明细（停 >{SLEEP_MIN} 分钟没休眠）",
                          sql_awake_table(), {"x": 0, "y": 26, "w": 24, "h": 10},
                          description="「空调约开(分钟)」= 估算空调实际开了多久（≠醒着时长）。判断：空调开得久且制热≈有人在车；制冷≈过热/AC；空调基本没开但车长时间醒着≈可能哨兵或车不休眠。"))
     return P
