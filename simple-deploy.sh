@@ -275,6 +275,12 @@ INSTALL_DIR="${HOME}/teslamate-chinese"
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
+# TeslaMate 数据导入功能需要 ./import 绑定挂载（compose 里 - ./import:/opt/app/import）。
+# Synology DSM / 部分 Docker 不会自动创建缺失的绑定源目录 → 必须显式建，
+# 否则 docker compose up 直接报 "Bind mount failed: .../import does not exist"。
+# 放在升级检测之前，让「全新安装」和「升级」两条路径的 up 都先有这个目录。
+mkdir -p "$INSTALL_DIR/import"
+
 echo "📁 工作目录: $INSTALL_DIR"
 echo ""
 
@@ -341,6 +347,16 @@ if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
     echo "✅ 升级完成"
     echo "============================================="
     echo ""
+    # 从现有配置读回密钥再显示一遍：首跑中途失败没看到、或忘了记的用户，重跑即可拿回。
+    # （都在本机终端，安全；|| true 防 set -e 下 grep 无匹配时整脚本中断）
+    GF_PASS_NOW=$(grep -m1 'GF_SECURITY_ADMIN_PASSWORD=' "$INSTALL_DIR/docker-compose.yml" 2>/dev/null | sed 's/.*GF_SECURITY_ADMIN_PASSWORD=//; s/[[:space:]]*$//' || true)
+    KEY_NOW=$(grep -m1 'ENCRYPTION_KEY=' "$INSTALL_DIR/docker-compose.yml" 2>/dev/null | sed 's/.*ENCRYPTION_KEY=//; s/[[:space:]]*$//' || true)
+    if [ -n "$GF_PASS_NOW" ] || [ -n "$KEY_NOW" ]; then
+        echo "🔑 你的密钥（请妥善保存，也存在 $INSTALL_DIR/docker-compose.yml）："
+        [ -n "$GF_PASS_NOW" ] && echo "   Grafana 登录:   admin / $GF_PASS_NOW"
+        [ -n "$KEY_NOW" ] && echo "   ENCRYPTION_KEY = $KEY_NOW"
+        echo ""
+    fi
     echo "下一步: 浏览器 Ctrl+Shift+R 强刷，看「地图源」下拉框是否就绪"
     echo ""
     echo "📚 完整发版说明: https://github.com/wjsall/teslamate-chinese-dashboards/releases/latest"
