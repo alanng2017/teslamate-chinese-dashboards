@@ -1,5 +1,12 @@
 # 更新日志
 
+## [Unreleased]
+
+### 🐛 一键部署脚本修复（Synology / 群晖等环境）
+
+- **自动创建 `import` 目录**：解决部分环境（Synology DSM 等不会自动创建绑定挂载源目录的 Docker）首次部署时 `docker compose up` 报 `Bind mount failed: .../import does not exist` 的问题。
+- **重跑脚本会重新显示密钥**：升级模式下会再次打印 Grafana 登录密码与 ENCRYPTION_KEY，方便首次部署中途中断、或没记下密钥的用户找回（密钥始终也保存在 `docker-compose.yml` 中）。
+
 ## [v1.7.13] - 2026-06-25
 
 ### 🐛 统一「车辆」下拉：未命名车辆不再显示为 "null"
