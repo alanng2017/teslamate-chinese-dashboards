@@ -58,7 +58,7 @@
       },
       "id": 100,
       "panels": [],
-      "title": "工作日 vs 周末",
+      "title": "工作日 vs 周末（有驾驶日均值）",
       "type": "row",
       "fieldConfig": {
         "defaults": {},
@@ -85,7 +85,7 @@
           },
           "unit": "none",
           "decimals": 1,
-          "displayName": "工作日平均里程/天(km)"
+          "displayName": "工作日有驾驶日均里程(km)"
         },
         "overrides": []
       },
@@ -111,6 +111,7 @@
         "textMode": "auto"
       },
       "pluginVersion": "11.6.1",
+      "description": "分母为时间范围内实际有完成行程的工作日本地日期，不是完整自然日数量；自然日版本可复议。",
       "targets": [
         {
           "datasource": {
@@ -120,7 +121,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((SUM(distance) / NULLIF(COUNT(DISTINCT DATE(start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')), 0))::numeric, 1) AS avg_km\nFROM drives\nWHERE car_id = $car_id\n  AND $__timeFilter(start_date)\n  AND EXTRACT(DOW FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) BETWEEN 1 AND 5;",
+          "rawSql": "SELECT\n  ROUND((SUM(distance) / NULLIF(COUNT(DISTINCT DATE(start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')), 0))::numeric, 1) AS avg_km\nFROM drives\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND $__timeFilter(start_date)\n  AND EXTRACT(DOW FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) BETWEEN 1 AND 5;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -164,7 +165,7 @@
           },
           "unit": "none",
           "decimals": 1,
-          "displayName": "周末平均里程/天(km)"
+          "displayName": "周末有驾驶日均里程(km)"
         },
         "overrides": []
       },
@@ -190,6 +191,7 @@
         "textMode": "auto"
       },
       "pluginVersion": "11.6.1",
+      "description": "分母为时间范围内实际有完成行程的周末本地日期，不是完整自然日数量；自然日版本可复议。",
       "targets": [
         {
           "datasource": {
@@ -199,7 +201,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((SUM(distance) / NULLIF(COUNT(DISTINCT DATE(start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')), 0))::numeric, 1) AS avg_km\nFROM drives\nWHERE car_id = $car_id\n  AND $__timeFilter(start_date)\n  AND EXTRACT(DOW FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) IN (0, 6);",
+          "rawSql": "SELECT\n  ROUND((SUM(distance) / NULLIF(COUNT(DISTINCT DATE(start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')), 0))::numeric, 1) AS avg_km\nFROM drives\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND $__timeFilter(start_date)\n  AND EXTRACT(DOW FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) IN (0, 6);",
           "refId": "A",
           "sql": {
             "columns": [
@@ -278,7 +280,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n    * 1000\n  )::numeric, 1) AS wh_per_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND EXTRACT(DOW FROM (d.start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) BETWEEN 1 AND 5\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
+          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n    * 1000\n  )::numeric, 1) AS wh_per_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND d.end_date IS NOT NULL\n  AND $__timeFilter(d.start_date)\n  AND EXTRACT(DOW FROM (d.start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) BETWEEN 1 AND 5\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -357,7 +359,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n    * 1000\n  )::numeric, 1) AS wh_per_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND EXTRACT(DOW FROM (d.start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) IN (0, 6)\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
+          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n    * 1000\n  )::numeric, 1) AS wh_per_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND d.end_date IS NOT NULL\n  AND $__timeFilter(d.start_date)\n  AND EXTRACT(DOW FROM (d.start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) IN (0, 6)\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -391,7 +393,7 @@
       },
       "id": 101,
       "panels": [],
-      "title": "出行时段分析",
+      "title": "出行时段分析（按出发小时）",
       "type": "row",
       "fieldConfig": {
         "defaults": {},
@@ -437,6 +439,7 @@
         "xTickLabelRotation": 0
       },
       "pluginVersion": "11.6.1",
+      "description": "仅按完成行程的出发本地小时归类；跨小时行程不会按行驶时长拆分，口径可复议。",
       "targets": [
         {
           "datasource": {
@@ -446,7 +449,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH hours AS (\n  SELECT LPAD(h::text, 2, '0') || ':00' AS hour FROM generate_series(0, 23) h\n),\nactual AS (\n  SELECT\n    TO_CHAR((start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone'), 'HH24') || ':00' AS hour,\n    COUNT(*) AS trip_count\n  FROM drives\n  WHERE car_id = $car_id AND $__timeFilter(start_date)\n  GROUP BY 1\n)\nSELECT h.hour, COALESCE(a.trip_count, 0) AS trip_count\nFROM hours h\nLEFT JOIN actual a ON a.hour = h.hour\nORDER BY h.hour;",
+          "rawSql": "WITH hours AS (\n  SELECT LPAD(h::text, 2, '0') || ':00' AS hour FROM generate_series(0, 23) h\n),\nactual AS (\n  SELECT\n    TO_CHAR((start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone'), 'HH24') || ':00' AS hour,\n    COUNT(*) AS trip_count\n  FROM drives\n  WHERE car_id = $car_id\n    AND end_date IS NOT NULL\n    AND $__timeFilter(start_date)\n  GROUP BY 1\n)\nSELECT h.hour, COALESCE(a.trip_count, 0) AS trip_count\nFROM hours h\nLEFT JOIN actual a ON a.hour = h.hour\nORDER BY h.hour;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -467,7 +470,7 @@
           }
         }
       ],
-      "title": "出行时段分布（24小时）",
+      "title": "出行时段分布（按出发小时）",
       "type": "barchart"
     },
     {
@@ -552,7 +555,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('month', timezone('UTC', d.start_date), '$__timezone') AS time,\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n    * 1000\n  )::numeric, 1) AS \"月均能耗\"\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "SELECT\n  date_trunc('month', timezone('UTC', d.start_date), '$__timezone') AS time,\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n    * 1000\n  )::numeric, 1) AS \"月均能耗\"\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND d.end_date IS NOT NULL\n  AND $__timeFilter(d.start_date)\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km\nGROUP BY 1\nORDER BY 1;",
           "refId": "A"
         }
       ],
@@ -580,7 +583,7 @@
       },
       "id": 102,
       "panels": [],
-      "title": "高速长途行程",
+      "title": "高速长途行程（speed_max代理）",
       "type": "row",
       "fieldConfig": {
         "defaults": {},
@@ -752,6 +755,7 @@
         "showHeader": true
       },
       "pluginVersion": "11.6.1",
+      "description": "高速判定仅使用最高时速 speed_max≥100km/h 作为代理，不识别实际道路类型或高速行驶时长；阈值和口径可复议。",
       "targets": [
         {
           "datasource": {
@@ -761,7 +765,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  d.start_date,\n  ROUND(d.distance::numeric, 1) AS distance,\n  d.duration_min,\n  ROUND(d.speed_max::numeric, 0) AS speed_max,\n  ROUND(((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency)::numeric, 2) AS energy_used,\n  ROUND(d.outside_temp_avg::numeric, 1) AS outside_temp_avg\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND d.distance >= 100\n  AND d.speed_max >= 100\nORDER BY d.distance DESC\nLIMIT 50;",
+          "rawSql": "SELECT\n  d.start_date,\n  ROUND(d.distance::numeric, 1) AS distance,\n  d.duration_min,\n  ROUND(d.speed_max::numeric, 0) AS speed_max,\n  ROUND(((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency)::numeric, 2) AS energy_used,\n  ROUND(d.outside_temp_avg::numeric, 1) AS outside_temp_avg\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND d.end_date IS NOT NULL\n  AND $__timeFilter(d.start_date)\n  AND d.distance >= 100 -- 可复议默认值: 长途行程阈值。\n  AND d.speed_max >= 100 -- 可复议默认值: 仅用最高时速代理高速。\nORDER BY d.distance DESC\nLIMIT 50;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -782,7 +786,7 @@
           }
         }
       ],
-      "title": "高速长途行程列表（里程≥100km 且 最高时速≥100km/h）",
+      "title": "高速长途行程列表（里程≥100km 且 speed_max≥100km/h）",
       "type": "table"
     },
     {
@@ -869,7 +873,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  CONCAT((FLOOR(d.outside_temp_avg / 5) * 5)::int, '~', (FLOOR(d.outside_temp_avg / 5) * 5 + 5)::int, '°C') AS \"温度区间\",\n  ROUND(AVG((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency / NULLIF(d.distance, 0) * 1000)::numeric, 0) AS \"平均能耗(Wh/km)\",\n  COUNT(*) AS \"行程数\"\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND $__timeFilter(d.start_date)\n  AND d.outside_temp_avg IS NOT NULL\n  AND d.distance > 5\n  AND d.start_ideal_range_km > d.end_ideal_range_km\nGROUP BY FLOOR(d.outside_temp_avg / 5)\nORDER BY FLOOR(d.outside_temp_avg / 5);",
+          "rawSql": "SELECT\n  CONCAT((FLOOR(d.outside_temp_avg / 5) * 5)::int, '~', (FLOOR(d.outside_temp_avg / 5) * 5 + 5)::int, '°C') AS \"温度区间\",\n  ROUND(AVG((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency / NULLIF(d.distance, 0) * 1000)::numeric, 0) AS \"平均能耗(Wh/km)\",\n  COUNT(*) AS \"行程数\"\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND d.end_date IS NOT NULL\n  AND $__timeFilter(d.start_date)\n  AND d.outside_temp_avg IS NOT NULL\n  AND d.distance > 5\n  AND d.start_ideal_range_km > d.end_ideal_range_km\nGROUP BY FLOOR(d.outside_temp_avg / 5)\nORDER BY FLOOR(d.outside_temp_avg / 5);",
           "refId": "A",
           "sql": {
             "columns": [

@@ -1,5 +1,5 @@
 {
-  "title": "⚡ 行车 vs 停车能耗（月度）",
+  "title": "⚡ 行车 vs 停车耗电（月度）",
   "uid": "sentry-drain-cn",
   "tags": [
     "tesla",
@@ -61,7 +61,7 @@
       "title": "",
       "options": {
         "mode": "markdown",
-        "content": "## ⚡ 行车 vs 停车能耗（月度）\n每月用电分 **🚗 行车** / **🅿️ 停车**；停车再分 **☀️ 醒着掉电**（停 >15 分钟没休眠）/ **😴 休眠掉电**（车待机休眠时的正常耗电）。\n> 「醒着掉电」混了坐车里、空调、预热、偶尔哨兵，分不清。判断哨兵看下方明细表的 **「空调约开」和「判断」**：空调没怎么开但车长时间醒着≈可能哨兵，制热≈有人在车，制冷≈过热/A/C。"
+        "content": "## ⚡ 行车 vs 停车耗电（月度）\n每月用电分 **🚗 行车** / **🅿️ 停车耗电**；停车再分 **☀️ 醒着掉电**（可复议默认阈值：停 >15 分钟没休眠）/ **😴 休眠掉电**（车待机休眠时的正常耗电）。\n> 「醒着掉电」混了坐车里、空调、预热、偶尔哨兵，分不清。判断哨兵看下方明细表的 **「空调约开」和「判断」**：空调没怎么开但车长时间醒着≈可能哨兵，制热≈有人在车，制冷≈过热/A/C。"
       },
       "gridPos": {
         "x": 0,
@@ -133,7 +133,7 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "🅿️ 停车电耗 (kWh)",
+      "title": "🅿️ 停车耗电 (kWh)",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "TeslaMate"
@@ -145,7 +145,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id AND cp.start_date >= g.ps AND cp.start_date < g.pe)\n  )\nSELECT ROUND((SUM(drop_km) * (SELECT e FROM eff))::numeric, 1) AS v\nFROM clean WHERE $__timeFilter(ps)",
+          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id\n          AND cp.start_date < g.pe\n          AND COALESCE(cp.end_date, cp.start_date) > g.ps)\n  )\nSELECT ROUND((SUM(drop_km) * (SELECT e FROM eff))::numeric, 1) AS v\nFROM clean WHERE $__timeFilter(ps)",
           "format": "table"
         }
       ],
@@ -193,7 +193,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "🅿️ 停车占总能耗 (%)",
+      "title": "🅿️ 停车耗电占总能耗 (%)",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "TeslaMate"
@@ -205,7 +205,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  drv AS (\n    SELECT SUM((start_rated_range_km - end_rated_range_km) * (SELECT e FROM eff)) AS kwh\n    FROM drives WHERE car_id = $car_id AND end_date IS NOT NULL\n      AND (start_rated_range_km - end_rated_range_km) >= 0.1\n      AND $__timeFilter(start_date)\n  ),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id AND cp.start_date >= g.ps AND cp.start_date < g.pe)\n  ),\n  pk AS (SELECT SUM(drop_km) * (SELECT e FROM eff) AS kwh FROM clean WHERE $__timeFilter(ps))\nSELECT ROUND((COALESCE((SELECT kwh FROM pk), 0)\n              / NULLIF(COALESCE((SELECT kwh FROM drv), 0) + COALESCE((SELECT kwh FROM pk), 0), 0) * 100)::numeric, 1) AS v",
+          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  drv AS (\n    SELECT SUM((start_rated_range_km - end_rated_range_km) * (SELECT e FROM eff)) AS kwh\n    FROM drives WHERE car_id = $car_id AND end_date IS NOT NULL\n      AND (start_rated_range_km - end_rated_range_km) >= 0.1\n      AND $__timeFilter(start_date)\n  ),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id\n          AND cp.start_date < g.pe\n          AND COALESCE(cp.end_date, cp.start_date) > g.ps)\n  ),\n  pk AS (SELECT SUM(drop_km) * (SELECT e FROM eff) AS kwh FROM clean WHERE $__timeFilter(ps))\nSELECT ROUND((COALESCE((SELECT kwh FROM pk), 0)\n              / NULLIF(COALESCE((SELECT kwh FROM drv), 0) + COALESCE((SELECT kwh FROM pk), 0), 0) * 100)::numeric, 1) AS v",
           "format": "table"
         }
       ],
@@ -265,7 +265,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id AND cp.start_date >= g.ps AND cp.start_date < g.pe)\n  ),\n  park_online AS (\n    SELECT c.ps, c.pe, c.drop_km,\n      COALESCE(MAX(EXTRACT(EPOCH FROM (LEAST(s.end_date, c.pe) - GREATEST(s.start_date, c.ps))))\n               FILTER (WHERE s.state = 'online'), 0) / 3600.0 AS max_online_h\n    FROM clean c\n    LEFT JOIN states s ON s.car_id = $car_id AND s.end_date IS NOT NULL\n                       AND s.start_date < c.pe AND s.end_date > c.ps\n    GROUP BY c.ps, c.pe, c.drop_km\n  )\nSELECT COUNT(*) AS v FROM park_online WHERE max_online_h > 0.25 AND $__timeFilter(ps)",
+          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id\n          AND cp.start_date < g.pe\n          AND COALESCE(cp.end_date, cp.start_date) > g.ps)\n  ),\n  park_online AS (\n    SELECT c.ps, c.pe, c.drop_km,\n      COALESCE(MAX(EXTRACT(EPOCH FROM (LEAST(s.end_date, c.pe) - GREATEST(s.start_date, c.ps))))\n               FILTER (WHERE s.state = 'online'), 0) / 3600.0 AS max_online_h\n    FROM clean c\n    LEFT JOIN states s ON s.car_id = $car_id AND s.end_date IS NOT NULL\n                       AND s.start_date < c.pe AND s.end_date > c.ps\n    GROUP BY c.ps, c.pe, c.drop_km\n  )\nSELECT COUNT(*) AS v FROM park_online WHERE max_online_h > 0.25 AND $__timeFilter(ps)",
           "format": "table"
         }
       ],
@@ -325,7 +325,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  drv AS (\n    SELECT SUM((start_rated_range_km - end_rated_range_km) * (SELECT e FROM eff)) AS kwh\n    FROM drives WHERE car_id = $car_id AND end_date IS NOT NULL\n      AND (start_rated_range_km - end_rated_range_km) >= 0.1\n      AND $__timeFilter(start_date)\n  ),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id AND cp.start_date >= g.ps AND cp.start_date < g.pe)\n  )\nSELECT\n  ROUND(COALESCE((SELECT kwh FROM drv), 0)::numeric, 1) AS \"🚗 行车\",\n  ROUND((COALESCE((SELECT SUM(drop_km) FROM clean WHERE $__timeFilter(ps)), 0) * (SELECT e FROM eff))::numeric, 1) AS \"🅿️ 停车\" ",
+          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  drv AS (\n    SELECT SUM((start_rated_range_km - end_rated_range_km) * (SELECT e FROM eff)) AS kwh\n    FROM drives WHERE car_id = $car_id AND end_date IS NOT NULL\n      AND (start_rated_range_km - end_rated_range_km) >= 0.1\n      AND $__timeFilter(start_date)\n  ),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id\n          AND cp.start_date < g.pe\n          AND COALESCE(cp.end_date, cp.start_date) > g.ps)\n  )\nSELECT\n  ROUND(COALESCE((SELECT kwh FROM drv), 0)::numeric, 1) AS \"🚗 行车\",\n  ROUND((COALESCE((SELECT SUM(drop_km) FROM clean WHERE $__timeFilter(ps)), 0) * (SELECT e FROM eff))::numeric, 1) AS \"🅿️ 停车\" ",
           "format": "table"
         }
       ],
@@ -413,7 +413,7 @@
     {
       "id": 7,
       "type": "barchart",
-      "title": "📊 月度能耗：行车 vs 停车 (kWh)",
+      "title": "📊 月度能耗：行车 vs 停车耗电 (kWh)",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "TeslaMate"
@@ -425,7 +425,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  drive_m AS (\n    SELECT date_trunc('month', timezone('UTC', d.start_date), '$__timezone') AS m,\n           SUM((d.start_rated_range_km - d.end_rated_range_km) * (SELECT e FROM eff)) AS kwh\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n      AND (d.start_rated_range_km - d.end_rated_range_km) >= 0.1\n      AND $__timeFilter(d.start_date)\n    GROUP BY 1\n  ),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id AND cp.start_date >= g.ps AND cp.start_date < g.pe)\n  ),\n  park_m AS (\n    SELECT date_trunc('month', timezone('UTC', ps), '$__timezone') AS m,\n           SUM(drop_km * (SELECT e FROM eff)) AS kwh\n    FROM clean WHERE $__timeFilter(ps) GROUP BY 1\n  )\nSELECT to_char(COALESCE(dr.m, pk.m), 'YYYY-MM') AS \"月份\",\n       ROUND(COALESCE(dr.kwh, 0)::numeric, 1) AS \"行车电耗\",\n       ROUND(COALESCE(pk.kwh, 0)::numeric, 1) AS \"停车电耗\"\nFROM drive_m dr FULL JOIN park_m pk ON dr.m = pk.m\nORDER BY 1",
+          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  drive_m AS (\n    SELECT date_trunc('month', timezone('UTC', d.start_date), '$__timezone') AS m,\n           SUM((d.start_rated_range_km - d.end_rated_range_km) * (SELECT e FROM eff)) AS kwh\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n      AND (d.start_rated_range_km - d.end_rated_range_km) >= 0.1\n      AND $__timeFilter(d.start_date)\n    GROUP BY 1\n  ),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id\n          AND cp.start_date < g.pe\n          AND COALESCE(cp.end_date, cp.start_date) > g.ps)\n  ),\n  park_m AS (\n    SELECT date_trunc('month', timezone('UTC', ps), '$__timezone') AS m,\n           SUM(drop_km * (SELECT e FROM eff)) AS kwh\n    FROM clean WHERE $__timeFilter(ps) GROUP BY 1\n  )\nSELECT to_char(COALESCE(dr.m, pk.m), 'YYYY-MM') AS \"月份\",\n       ROUND(COALESCE(dr.kwh, 0)::numeric, 1) AS \"行车电耗\",\n       ROUND(COALESCE(pk.kwh, 0)::numeric, 1) AS \"停车耗电\"\nFROM drive_m dr FULL JOIN park_m pk ON dr.m = pk.m\nORDER BY 1",
           "format": "table"
         }
       ],
@@ -488,7 +488,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "停车电耗"
+              "options": "停车耗电"
             },
             "properties": [
               {
@@ -534,7 +534,7 @@
     {
       "id": 8,
       "type": "barchart",
-      "title": "🅿️ 月度停车拆分：醒着掉电 vs 休眠掉电 (kWh)",
+      "title": "🅿️ 月度停车耗电拆分：醒着掉电 vs 休眠掉电 (kWh)",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "TeslaMate"
@@ -546,7 +546,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id AND cp.start_date >= g.ps AND cp.start_date < g.pe)\n  ),\n  park_online AS (\n    SELECT c.ps, c.pe, c.drop_km,\n      COALESCE(MAX(EXTRACT(EPOCH FROM (LEAST(s.end_date, c.pe) - GREATEST(s.start_date, c.ps))))\n               FILTER (WHERE s.state = 'online'), 0) / 3600.0 AS max_online_h\n    FROM clean c\n    LEFT JOIN states s ON s.car_id = $car_id AND s.end_date IS NOT NULL\n                       AND s.start_date < c.pe AND s.end_date > c.ps\n    GROUP BY c.ps, c.pe, c.drop_km\n  ),\n  m AS (\n    SELECT date_trunc('month', timezone('UTC', ps), '$__timezone') AS m,\n           SUM(drop_km) FILTER (WHERE max_online_h >  0.25) AS awake_km,\n           SUM(drop_km) FILTER (WHERE max_online_h <= 0.25) AS sleep_km\n    FROM park_online WHERE $__timeFilter(ps) GROUP BY 1\n  )\nSELECT to_char(m, 'YYYY-MM') AS \"月份\",\n       ROUND((COALESCE(awake_km, 0) * (SELECT e FROM eff))::numeric, 1) AS \"☀️ 醒着掉电\",\n       ROUND((COALESCE(sleep_km, 0) * (SELECT e FROM eff))::numeric, 1) AS \"😴 休眠掉电\"\nFROM m ORDER BY 1",
+          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id\n          AND cp.start_date < g.pe\n          AND COALESCE(cp.end_date, cp.start_date) > g.ps)\n  ),\n  park_online AS (\n    SELECT c.ps, c.pe, c.drop_km,\n      COALESCE(MAX(EXTRACT(EPOCH FROM (LEAST(s.end_date, c.pe) - GREATEST(s.start_date, c.ps))))\n               FILTER (WHERE s.state = 'online'), 0) / 3600.0 AS max_online_h\n    FROM clean c\n    LEFT JOIN states s ON s.car_id = $car_id AND s.end_date IS NOT NULL\n                       AND s.start_date < c.pe AND s.end_date > c.ps\n    GROUP BY c.ps, c.pe, c.drop_km\n  ),\n  m AS (\n    SELECT date_trunc('month', timezone('UTC', ps), '$__timezone') AS m,\n           SUM(drop_km) FILTER (WHERE max_online_h >  0.25) AS awake_km,\n           SUM(drop_km) FILTER (WHERE max_online_h <= 0.25) AS sleep_km\n    FROM park_online WHERE $__timeFilter(ps) GROUP BY 1\n  )\nSELECT to_char(m, 'YYYY-MM') AS \"月份\",\n       ROUND((COALESCE(awake_km, 0) * (SELECT e FROM eff))::numeric, 1) AS \"☀️ 醒着掉电\",\n       ROUND((COALESCE(sleep_km, 0) * (SELECT e FROM eff))::numeric, 1) AS \"😴 休眠掉电\"\nFROM m ORDER BY 1",
           "format": "table"
         }
       ],
@@ -651,12 +651,12 @@
         "w": 24,
         "h": 9
       },
-      "description": "醒着掉电 = 停车 >15 分钟没休眠时掉的电（你坐车里/空调/预热/哨兵的混合）；休眠掉电 = 车正常休眠待机时的耗电。"
+      "description": "醒着掉电 = 停车 >15 分钟没休眠时掉的电（可复议默认阈值；你坐车里/空调/预热/哨兵的混合）；休眠掉电 = 车正常休眠待机时的耗电。"
     },
     {
       "id": 9,
       "type": "table",
-      "title": "🔍 醒着停车明细（停 >15 分钟没休眠）",
+      "title": "🔍 醒着停车明细（可复议默认阈值：停 >15 分钟没休眠）",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "TeslaMate"
@@ -668,7 +668,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id AND cp.start_date >= g.ps AND cp.start_date < g.pe)\n  ),\n  park_online AS (\n    SELECT c.ps, c.pe, c.drop_km,\n      COALESCE(MAX(EXTRACT(EPOCH FROM (LEAST(s.end_date, c.pe) - GREATEST(s.start_date, c.ps))))\n               FILTER (WHERE s.state = 'online'), 0) / 3600.0 AS max_online_h\n    FROM clean c\n    LEFT JOIN states s ON s.car_id = $car_id AND s.end_date IS NOT NULL\n                       AND s.start_date < c.pe AND s.end_date > c.ps\n    GROUP BY c.ps, c.pe, c.drop_km\n  ),\n  top AS (   -- 先过滤+排序+限 30，再去 positions（否则 LATERAL 会对所有醒着段都扫，大库会卡）\n    SELECT ps, pe, drop_km, max_online_h\n    FROM park_online\n    WHERE max_online_h > 0.25 AND $__timeFilter(ps)\n    ORDER BY drop_km DESC\n    LIMIT 30\n  )\nSELECT\n  to_char(timezone('$__timezone', timezone('UTC', ps)), 'YYYY-MM-DD HH24:MI') AS \"停车开始\",\n  ROUND((EXTRACT(EPOCH FROM (pe - ps)) / 3600)::numeric, 1) AS \"停车时长(h)\",\n  ROUND((max_online_h * 60)::numeric, 0) AS \"醒着(分钟)\",\n  ROUND(((cs.n_clim::numeric / NULLIF(cs.n, 0)) * max_online_h * 60)::numeric, 0) AS \"空调约开(分钟)\",\n  ROUND(cs.out_t::numeric, 0) AS \"室外温度℃\",\n  CASE\n    WHEN cs.n_clim::float / NULLIF(cs.n, 0) < 0.15 THEN '空调基本没开·可能哨兵'\n    WHEN cs.in_clim > cs.out_clim + 2 THEN '制热·可能有人在车'\n    ELSE '制冷·过热或开AC'\n  END AS \"判断\",\n  ROUND((drop_km * (SELECT e FROM eff))::numeric, 2) AS \"停车电耗(kWh)\"\nFROM top\nLEFT JOIN LATERAL (\n  SELECT COUNT(*) AS n,\n         COUNT(*) FILTER (WHERE p.is_climate_on) AS n_clim,\n         AVG(p.outside_temp) AS out_t,\n         AVG(p.inside_temp)  FILTER (WHERE p.is_climate_on) AS in_clim,\n         AVG(p.outside_temp) FILTER (WHERE p.is_climate_on) AS out_clim\n  FROM positions p\n  WHERE p.car_id = $car_id AND p.date >= top.ps AND p.date <= top.pe\n) cs ON TRUE\nORDER BY drop_km DESC",
+          "rawSql": "WITH eff AS (SELECT efficiency AS e FROM cars WHERE id = $car_id),\n  gaps AS (\n    SELECT d.end_date AS ps, d.end_rated_range_km AS r0,\n           LEAD(d.start_date)           OVER (ORDER BY d.start_date) AS pe,\n           LEAD(d.start_rated_range_km) OVER (ORDER BY d.start_date) AS r1\n    FROM drives d\n    WHERE d.car_id = $car_id AND d.end_date IS NOT NULL\n  ),\n  clean AS (\n    SELECT g.ps, g.pe, GREATEST(g.r0 - g.r1, 0) AS drop_km\n    FROM gaps g\n    WHERE g.pe IS NOT NULL AND g.pe > g.ps\n      AND NOT EXISTS (\n        SELECT 1 FROM charging_processes cp\n        WHERE cp.car_id = $car_id\n          AND cp.start_date < g.pe\n          AND COALESCE(cp.end_date, cp.start_date) > g.ps)\n  ),\n  park_online AS (\n    SELECT c.ps, c.pe, c.drop_km,\n      COALESCE(MAX(EXTRACT(EPOCH FROM (LEAST(s.end_date, c.pe) - GREATEST(s.start_date, c.ps))))\n               FILTER (WHERE s.state = 'online'), 0) / 3600.0 AS max_online_h\n    FROM clean c\n    LEFT JOIN states s ON s.car_id = $car_id AND s.end_date IS NOT NULL\n                       AND s.start_date < c.pe AND s.end_date > c.ps\n    GROUP BY c.ps, c.pe, c.drop_km\n  ),\n  top AS (   -- 先过滤+排序+限 30，再去 positions（否则 LATERAL 会对所有醒着段都扫，大库会卡）\n    SELECT ps, pe, drop_km, max_online_h\n    FROM park_online\n    WHERE max_online_h > 0.25 AND $__timeFilter(ps)\n    ORDER BY drop_km DESC\n    LIMIT 30\n  )\nSELECT\n  to_char(timezone('$__timezone', timezone('UTC', ps)), 'YYYY-MM-DD HH24:MI') AS \"停车开始\",\n  ROUND((EXTRACT(EPOCH FROM (pe - ps)) / 3600)::numeric, 1) AS \"停车时长(h)\",\n  ROUND((max_online_h * 60)::numeric, 0) AS \"醒着(分钟)\",\n  ROUND(((cs.n_clim::numeric / NULLIF(cs.n, 0)) * max_online_h * 60)::numeric, 0) AS \"空调约开(分钟)\",\n  ROUND(cs.out_t::numeric, 0) AS \"室外温度℃\",\n  CASE\n    WHEN cs.n_clim::float / NULLIF(cs.n, 0) < 0.15 THEN '空调基本没开·可能哨兵'\n    WHEN cs.in_clim > cs.out_clim + 2 THEN '制热·可能有人在车'\n    ELSE '制冷·过热或开AC'\n  END AS \"判断\",\n  ROUND((drop_km * (SELECT e FROM eff))::numeric, 2) AS \"停车耗电(kWh)\"\nFROM top\nLEFT JOIN LATERAL (\n  SELECT COUNT(*) AS n,\n         COUNT(*) FILTER (WHERE p.is_climate_on) AS n_clim,\n         AVG(p.outside_temp) AS out_t,\n         AVG(p.inside_temp)  FILTER (WHERE p.is_climate_on) AS in_clim,\n         AVG(p.outside_temp) FILTER (WHERE p.is_climate_on) AS out_clim\n  FROM positions p\n  WHERE p.car_id = $car_id AND p.date >= top.ps AND p.date <= top.pe\n) cs ON TRUE\nORDER BY drop_km DESC",
           "format": "table"
         }
       ],
@@ -682,7 +682,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "停车电耗(kWh)"
+              "options": "停车耗电(kWh)"
             },
             "properties": [
               {
@@ -767,7 +767,7 @@
         "cellHeight": "sm",
         "sortBy": [
           {
-            "displayName": "停车电耗(kWh)",
+            "displayName": "停车耗电(kWh)",
             "desc": true
           }
         ]

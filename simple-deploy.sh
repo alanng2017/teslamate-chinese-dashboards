@@ -317,6 +317,13 @@ if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
             echo "  ⚠ 坐标函数更新失败"
         fi
 
+        echo "  → 安装/更新单位换算函数"
+        if curl -fsSL "$SQL_BASE/install-unit-functions.sql" | docker exec -i "$DB_CONTAINER" psql -U teslamate -d teslamate >/dev/null 2>&1; then
+            echo "  ✓ 单位换算函数已更新（km/mi、℃/℉、m/ft、胎压）"
+        else
+            echo "  ⚠ 单位换算函数更新失败"
+        fi
+
         echo "  → 安装/更新分时电价表 + 函数（v1.5.0+）"
         if curl -fsSL "$SQL_BASE/install-tou.sql" | docker exec -i "$DB_CONTAINER" psql -U teslamate -d teslamate >/dev/null 2>&1; then
             echo "  ✓ 分时电价已就绪（首次装好后到「⚡ 分时电价配置」仪表盘填规则）"
@@ -558,6 +565,13 @@ if [ "$DB_READY" -eq 1 ]; then
         SQL_OK=0
     fi
 
+    if curl -fsSL "$SQL_BASE/install-unit-functions.sql" | docker exec -i "$DB_CONTAINER" psql -U teslamate -d teslamate >/dev/null 2>&1; then
+        echo "  ✓ 单位换算函数已装（km/mi、℃/℉、m/ft、胎压）"
+    else
+        echo "  ⚠ 单位换算函数安装失败"
+        SQL_OK=0
+    fi
+
     if curl -fsSL "$SQL_BASE/install-tou.sql" | docker exec -i "$DB_CONTAINER" psql -U teslamate -d teslamate >/dev/null 2>&1; then
         echo "  ✓ 分时电价表+函数已装（v1.5.0+，首次装好后到「⚡ 分时电价配置」仪表盘填规则）"
     else
@@ -575,7 +589,7 @@ if [ "$DB_READY" -eq 1 ]; then
     if [ "$SQL_OK" -eq 0 ]; then
         echo ""
         echo "    部分 SQL 安装失败，可手动重跑（按需选）："
-        echo "    for f in install-coord-functions install-tou install-indexes; do"
+        echo "    for f in install-coord-functions install-unit-functions install-tou install-indexes; do"
         echo "      curl -fsSL $SQL_BASE/\$f.sql | docker exec -i $DB_CONTAINER psql -U teslamate -d teslamate"
         echo "    done"
     fi

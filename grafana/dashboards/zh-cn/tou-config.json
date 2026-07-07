@@ -58,12 +58,12 @@
           "type": "grafana-postgresql-datasource",
           "uid": "TeslaMate"
         },
-        "definition": "SELECT g.id AS __value, g.name AS __text FROM geofences g WHERE g.id IN (SELECT DISTINCT geofence_id FROM tou_rates WHERE geofence_id IS NOT NULL) ORDER BY g.name",
+        "definition": "-- ⚠需 Owner 确认: 全局默认哨兵文案用于查看无位置充电电价。\nSELECT __value, __text FROM (\n  SELECT ''::text AS __value, '（全局默认 · 无位置充电用此价）' AS __text, 0 AS ord\n  UNION ALL\n  SELECT id::text AS __value, name AS __text, 1 AS ord FROM geofences\n) t ORDER BY ord, __text",
         "includeAll": false,
         "label": "充电点",
         "name": "geofence_filter",
         "options": [],
-        "query": "SELECT g.id AS __value, g.name AS __text FROM geofences g WHERE g.id IN (SELECT DISTINCT geofence_id FROM tou_rates WHERE geofence_id IS NOT NULL) ORDER BY g.name",
+        "query": "-- ⚠需 Owner 确认: 全局默认哨兵文案用于查看无位置充电电价。\nSELECT __value, __text FROM (\n  SELECT ''::text AS __value, '（全局默认 · 无位置充电用此价）' AS __text, 0 AS ord\n  UNION ALL\n  SELECT id::text AS __value, name AS __text, 1 AS ord FROM geofences\n) t ORDER BY ord, __text",
         "refresh": 1,
         "regex": "",
         "type": "query",
@@ -949,7 +949,7 @@
           },
           "payloadMode": "all",
           "code": "",
-          "confirm": false,
+          "confirm": true,
           "highlight": false,
           "highlightColor": "red"
         },
@@ -1123,7 +1123,7 @@
           },
           "payloadMode": "all",
           "code": "",
-          "confirm": false,
+          "confirm": true,
           "highlight": false,
           "highlightColor": "red"
         },
@@ -1259,7 +1259,7 @@
           },
           "payloadMode": "all",
           "code": "",
-          "confirm": false,
+          "confirm": true,
           "highlight": false,
           "highlightColor": "red"
         },
@@ -1406,7 +1406,7 @@
           },
           "payloadMode": "all",
           "code": "",
-          "confirm": false,
+          "confirm": true,
           "highlight": false,
           "highlightColor": "red"
         },
@@ -1541,7 +1541,7 @@
           },
           "payloadMode": "all",
           "code": "",
-          "confirm": false,
+          "confirm": true,
           "highlight": false,
           "highlightColor": "red"
         },
@@ -1698,7 +1698,7 @@
           },
           "payloadMode": "all",
           "code": "",
-          "confirm": false,
+          "confirm": true,
           "highlight": false,
           "highlightColor": "red"
         },

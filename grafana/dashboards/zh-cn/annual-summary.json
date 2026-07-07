@@ -85,7 +85,7 @@
           },
           "unit": "none",
           "decimals": 0,
-          "displayName": "年度总里程(km)"
+          "displayName": "年度总里程($length_unit)"
         },
         "overrides": []
       },
@@ -120,7 +120,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT ROUND(COALESCE(SUM(distance), 0)::numeric, 0) AS total_km\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int;",
+          "rawSql": "SELECT ROUND(convert_km(COALESCE(SUM(distance), 0)::numeric, '$length_unit'), 0) AS total_distance\nFROM drives\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -199,7 +199,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS trip_count\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int;",
+          "rawSql": "SELECT COUNT(*) AS trip_count\nFROM drives\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -278,7 +278,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT ROUND(COALESCE(SUM(charge_energy_added), 0)::numeric, 1) AS total_kwh\nFROM charging_processes\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int;",
+          "rawSql": "SELECT ROUND(COALESCE(SUM(charge_energy_added), 0)::numeric, 1) AS total_kwh\nFROM charging_processes\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -357,7 +357,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT ROUND(COALESCE(SUM(effective_cost(id, cost)), 0)::numeric, 2) AS total_cost\nFROM charging_processes\nWHERE car_id = $car_id\n  AND effective_cost(id, cost) IS NOT NULL\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int;",
+          "rawSql": "SELECT ROUND(COALESCE(SUM(effective_cost(id, cost)), 0)::numeric, 2) AS total_cost\nFROM charging_processes\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND effective_cost(id, cost) IS NOT NULL\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -418,7 +418,7 @@
           },
           "unit": "none",
           "decimals": 1,
-          "displayName": "最远单次行程(km)"
+          "displayName": "最远单次行程($length_unit)"
         },
         "overrides": []
       },
@@ -453,7 +453,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT ROUND(COALESCE(MAX(distance), 0)::numeric, 1) AS max_km\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int;",
+          "rawSql": "SELECT ROUND(convert_km(COALESCE(MAX(distance), 0)::numeric, '$length_unit'), 1) AS max_distance\nFROM drives\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -532,7 +532,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT ROUND(COALESCE(MAX(speed_max), 0)::numeric, 0) AS max_speed\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int;",
+          "rawSql": "SELECT ROUND(COALESCE(MAX(speed_max), 0)::numeric, 0) AS max_speed\nFROM drives\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -576,7 +576,7 @@
           },
           "unit": "none",
           "decimals": 1,
-          "displayName": "年均能耗(Wh/km)"
+          "displayName": "年均能耗(Wh/$length_unit)"
         },
         "overrides": []
       },
@@ -611,7 +611,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(SUM(d.distance), 0)\n    * 1000\n  )::numeric, 1) AS avg_wh_km\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND EXTRACT(YEAR FROM (d.start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
+          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0)\n    / NULLIF(convert_km(SUM(d.distance)::numeric, '$length_unit'), 0)\n    * 1000\n  )::numeric, 1) AS avg_wh_per_unit\nFROM drives d\nJOIN cars c ON c.id = d.car_id\nWHERE d.car_id = $car_id\n  AND d.end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (d.start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int\n  AND d.distance > 0\n  AND d.start_ideal_range_km > d.end_ideal_range_km;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -690,7 +690,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS charge_count\nFROM charging_processes\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int;",
+          "rawSql": "SELECT COUNT(*) AS charge_count\nFROM charging_processes\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -743,7 +743,7 @@
           },
           "custom": {
             "fillOpacity": 70,
-            "axisLabel": "里程(km)"
+            "axisLabel": "里程($length_unit)"
           },
           "unit": "none",
           "decimals": 0,
@@ -780,7 +780,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  TO_CHAR(date_trunc('month', (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')), 'MM月') AS month,\n  ROUND(COALESCE(SUM(distance), 0)::numeric, 0) AS \"月度里程\"\nFROM drives\nWHERE car_id = $car_id\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int\nGROUP BY date_trunc('month', (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone'))\nORDER BY date_trunc('month', (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone'));",
+          "rawSql": "SELECT\n  TO_CHAR(date_trunc('month', (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')), 'MM月') AS month,\n  ROUND(convert_km(COALESCE(SUM(distance), 0)::numeric, '$length_unit'), 0) AS \"月度里程\"\nFROM drives\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int\nGROUP BY date_trunc('month', (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai'))\nORDER BY date_trunc('month', (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai'));",
           "refId": "A",
           "sql": {
             "columns": [
@@ -801,7 +801,7 @@
           }
         }
       ],
-      "title": "月度里程分布 (km)",
+      "title": "月度里程分布 ($length_unit)",
       "type": "barchart"
     },
     {
@@ -852,7 +852,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH t AS (\n  SELECT (start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone') AS local_date, effective_cost(id, cost) AS cost\n  FROM charging_processes\n  WHERE car_id = $car_id AND effective_cost(id, cost) IS NOT NULL\n)\nSELECT\n  make_date(2000, EXTRACT(MONTH FROM local_date)::int, 1) AS time,\n  ROUND(COALESCE(SUM(CASE WHEN EXTRACT(YEAR FROM local_date) = EXTRACT(YEAR FROM timezone('$__timezone', NOW())) THEN cost END), 0)::numeric, 2) AS \"今年\",\n  ROUND(COALESCE(SUM(CASE WHEN EXTRACT(YEAR FROM local_date) = EXTRACT(YEAR FROM timezone('$__timezone', NOW())) - 1 THEN cost END), 0)::numeric, 2) AS \"去年\",\n  ROUND(COALESCE(SUM(CASE WHEN EXTRACT(YEAR FROM local_date) = EXTRACT(YEAR FROM timezone('$__timezone', NOW())) - 2 THEN cost END), 0)::numeric, 2) AS \"前年\"\nFROM t\nWHERE EXTRACT(YEAR FROM local_date) >= EXTRACT(YEAR FROM timezone('$__timezone', NOW())) - 2\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "WITH months AS (\n  SELECT generate_series(1, 12) AS month\n),\nt AS (\n  SELECT\n    EXTRACT(MONTH FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai'))::int AS month,\n    effective_cost(id, cost) AS cost\n  FROM charging_processes\n  WHERE car_id = $car_id\n    AND end_date IS NOT NULL\n    AND effective_cost(id, cost) IS NOT NULL\n    AND EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int\n)\nSELECT\n  make_date($year::int, months.month, 1) AS time,\n  ROUND(COALESCE(SUM(t.cost), 0)::numeric, 2) AS \"充电费用\"\nFROM months\nLEFT JOIN t ON t.month = months.month\nGROUP BY months.month\nORDER BY 1;",
           "refId": "A"
         }
       ],
@@ -943,11 +943,11 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "累计里程(km)"
+                "value": "累计里程($length_unit)"
               },
               {
                 "id": "unit",
-                "value": "km"
+                "value": "none"
               },
               {
                 "id": "decimals",
@@ -992,7 +992,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(g.name, a.display_name, CONCAT(d.car_id, ' trip')) AS address,\n  COUNT(*) AS visit_count,\n  ROUND(SUM(d.distance)::numeric, 0) AS total_km\nFROM drives d\nLEFT JOIN addresses a ON d.end_address_id = a.id\nLEFT JOIN geofences g ON d.end_geofence_id = g.id\nWHERE d.car_id = $car_id\n  AND EXTRACT(YEAR FROM (d.start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int\n  AND (g.name IS NOT NULL OR a.display_name IS NOT NULL)\nGROUP BY 1\nORDER BY visit_count DESC\nLIMIT 10;",
+          "rawSql": "SELECT\n  COALESCE(g.name, a.display_name, CONCAT(d.car_id, ' trip')) AS address,\n  COUNT(*) AS visit_count,\n  ROUND(convert_km(SUM(d.distance)::numeric, '$length_unit'), 0) AS total_km\nFROM drives d\nLEFT JOIN addresses a ON d.end_address_id = a.id\nLEFT JOIN geofences g ON d.end_geofence_id = g.id\nWHERE d.car_id = $car_id\n  AND d.end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (d.start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int\n  AND (g.name IS NOT NULL OR a.display_name IS NOT NULL)\nGROUP BY 1\nORDER BY visit_count DESC\nLIMIT 10;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1132,7 +1132,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(g.name, a.display_name, '未知地点') AS address,\n  COUNT(*) AS charge_count,\n  ROUND(SUM(cp.charge_energy_added)::numeric, 1) AS total_kwh\nFROM charging_processes cp\nLEFT JOIN addresses a ON cp.address_id = a.id\nLEFT JOIN geofences g ON cp.geofence_id = g.id\nWHERE cp.car_id = $car_id\n  AND EXTRACT(YEAR FROM (cp.start_date AT TIME ZONE 'UTC' AT TIME ZONE '$__timezone')) = $year::int\n  AND (g.name IS NOT NULL OR a.display_name IS NOT NULL)\nGROUP BY 1\nORDER BY charge_count DESC\nLIMIT 10;",
+          "rawSql": "SELECT\n  COALESCE(g.name, a.display_name, '未知地点') AS address,\n  COUNT(*) AS charge_count,\n  ROUND(SUM(cp.charge_energy_added)::numeric, 1) AS total_kwh\nFROM charging_processes cp\nLEFT JOIN addresses a ON cp.address_id = a.id\nLEFT JOIN geofences g ON cp.geofence_id = g.id\nWHERE cp.car_id = $car_id\n  AND cp.end_date IS NOT NULL\n  AND EXTRACT(YEAR FROM (cp.start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')) = $year::int\n  AND (g.name IS NOT NULL OR a.display_name IS NOT NULL)\nGROUP BY 1\nORDER BY charge_count DESC\nLIMIT 10;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1185,43 +1185,38 @@
         "regexApplyTo": "value"
       },
       {
-        "current": {
-          "text": "2025",
-          "value": "2025"
+        "current": {},
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "TeslaMate"
         },
+        "definition": "WITH bounds AS (\n  SELECT\n    MIN(EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')))::int AS min_year,\n    EXTRACT(YEAR FROM timezone('Asia/Shanghai', NOW()))::int AS current_year\n  FROM drives\n  WHERE car_id = $car_id\n)\nSELECT year_value AS __value, year_value::text AS __text\nFROM bounds\nCROSS JOIN LATERAL generate_series(COALESCE(min_year, current_year), current_year) AS years(year_value)\nORDER BY year_value DESC;",
         "hide": 0,
         "includeAll": false,
         "label": "年份",
         "name": "year",
-        "options": [
-          {
-            "selected": false,
-            "text": "2022",
-            "value": "2022"
-          },
-          {
-            "selected": false,
-            "text": "2023",
-            "value": "2023"
-          },
-          {
-            "selected": false,
-            "text": "2024",
-            "value": "2024"
-          },
-          {
-            "selected": true,
-            "text": "2025",
-            "value": "2025"
-          },
-          {
-            "selected": false,
-            "text": "2026",
-            "value": "2026"
-          }
-        ],
-        "query": "2022,2023,2024,2025,2026",
-        "type": "custom"
+        "options": [],
+        "query": "WITH bounds AS (\n  SELECT\n    MIN(EXTRACT(YEAR FROM (start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')))::int AS min_year,\n    EXTRACT(YEAR FROM timezone('Asia/Shanghai', NOW()))::int AS current_year\n  FROM drives\n  WHERE car_id = $car_id\n)\nSELECT year_value AS __value, year_value::text AS __text\nFROM bounds\nCROSS JOIN LATERAL generate_series(COALESCE(min_year, current_year), current_year) AS years(year_value)\nORDER BY year_value DESC;",
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "TeslaMate"
+        },
+        "definition": "SELECT unit AS __value, unit AS __text FROM (SELECT COALESCE((SELECT unit_of_length FROM settings LIMIT 1), 'km') AS unit) s",
+        "hide": 2,
+        "includeAll": false,
+        "name": "length_unit",
+        "options": [],
+        "query": "SELECT unit AS __value, unit AS __text FROM (SELECT COALESCE((SELECT unit_of_length FROM settings LIMIT 1), 'km') AS unit) s",
+        "refresh": 1,
+        "regex": "",
+        "type": "query",
+        "regexApplyTo": "value"
       }
     ]
   },

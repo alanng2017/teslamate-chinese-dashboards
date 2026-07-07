@@ -71,7 +71,7 @@
         "y": 1
       },
       "id": 2,
-      "description": "所有车辆核心指标一览。通过右上角时间选择器可调整统计范围，默认显示近一年数据。",
+      "description": "所有车辆核心指标一览。总里程、行程次数、每公里电费统一使用已完成行程；平均能耗只用能耗有效行程，并显示对应样本里程。",
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -96,7 +96,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  COALESCE(d_stats.total_km, 0) AS \"总里程(km)\",\n  COALESCE(d_stats.drive_count, 0) AS \"行程次数\",\n  COALESCE(d_stats.avg_consumption, 0) AS \"平均能耗(Wh/km)\",\n  COALESCE(cp_stats.total_cost, 0) AS \"总充电费用(元)\",\n  ROUND((cp_stats.total_cost / NULLIF(d_stats.total_km, 0))::numeric, 4) AS \"每公里电费(元/km)\",\n  COALESCE(cp_stats.dc_ratio, 0) AS \"快充比例(%)\"\nFROM cars c\nLEFT JOIN (\n  SELECT d.car_id,\n    ROUND(SUM(d.distance)::numeric, 0) AS total_km,\n    COUNT(d.id) AS drive_count,\n    ROUND((SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c2.efficiency) / NULLIF(SUM(d.distance), 0) * 1000)::numeric, 1) AS avg_consumption\n  FROM drives d\n  JOIN cars c2 ON c2.id = d.car_id\n  WHERE d.end_date IS NOT NULL\n    AND d.start_ideal_range_km > d.end_ideal_range_km\n    AND $__timeFilter(d.start_date)\n  GROUP BY d.car_id\n) d_stats ON d_stats.car_id = c.id\nLEFT JOIN (\n  SELECT cp.car_id,\n    ROUND(SUM(effective_cost(cp.id, cp.cost))::numeric, 2) AS total_cost,\n    ROUND(\n      (COUNT(DISTINCT CASE WHEN fast.max_power > 22 THEN cp.id END)::numeric /\n       NULLIF(COUNT(DISTINCT cp.id), 0) * 100)::numeric, 1\n    ) AS dc_ratio\n  FROM charging_processes cp\n  LEFT JOIN LATERAL (\n    SELECT MAX(charger_power) AS max_power FROM charges WHERE charging_process_id = cp.id\n  ) fast ON true\n  WHERE $__timeFilter(cp.start_date)\n  GROUP BY cp.car_id\n) cp_stats ON cp_stats.car_id = c.id\nORDER BY COALESCE(d_stats.total_km, 0) DESC;",
+          "rawSql": "WITH drive_scope AS (\n  SELECT\n    d.car_id,\n    d.distance,\n    (d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency AS energy_kwh,\n    d.distance > 0 AND d.start_ideal_range_km > d.end_ideal_range_km AS energy_valid\n  FROM drives d\n  JOIN cars c ON c.id = d.car_id\n  WHERE d.end_date IS NOT NULL\n    AND $__timeFilter(d.start_date)\n),\ndrive_stats AS (\n  SELECT\n    car_id,\n    convert_km(COALESCE(SUM(distance), 0)::numeric, '$length_unit') AS total_distance_raw,\n    ROUND(convert_km(COALESCE(SUM(distance), 0)::numeric, '$length_unit'), 0) AS total_distance_display,\n    COUNT(*) AS drive_count,\n    ROUND(convert_km(COALESCE(SUM(distance) FILTER (WHERE energy_valid), 0)::numeric, '$length_unit'), 0) AS energy_sample_distance,\n    ROUND((SUM(energy_kwh) FILTER (WHERE energy_valid) / NULLIF(convert_km((SUM(distance) FILTER (WHERE energy_valid))::numeric, '$length_unit'), 0) * 1000)::numeric, 1) AS avg_consumption\n  FROM drive_scope\n  GROUP BY car_id\n),\ncp_stats AS (\n  SELECT cp.car_id,\n    ROUND(SUM(effective_cost(cp.id, cp.cost))::numeric, 2) AS total_cost,\n    ROUND(\n      (COUNT(DISTINCT CASE\n        -- 可复议默认值: 中国/特斯拉场景下 >22kW 作为直流快充保守代理；22kW 本身可能仍是交流/边界值。\n        WHEN fast.max_power > 22 THEN cp.id\n      END)::numeric /\n       NULLIF(COUNT(DISTINCT cp.id), 0) * 100)::numeric, 1\n    ) AS dc_ratio\n  FROM charging_processes cp\n  LEFT JOIN LATERAL (\n    SELECT MAX(charger_power) AS max_power FROM charges WHERE charging_process_id = cp.id\n  ) fast ON true\n  WHERE cp.end_date IS NOT NULL\n    AND $__timeFilter(cp.start_date)\n  GROUP BY cp.car_id\n)\nSELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  COALESCE(d_stats.total_distance_display, 0) AS \"总里程($length_unit)\",\n  COALESCE(d_stats.drive_count, 0) AS \"行程次数\",\n  d_stats.avg_consumption AS \"平均能耗(Wh/$length_unit)\",\n  COALESCE(d_stats.energy_sample_distance, 0) AS \"能耗样本里程($length_unit)\",\n  COALESCE(cp_stats.total_cost, 0) AS \"总充电费用(元)\",\n  ROUND((cp_stats.total_cost / NULLIF(d_stats.total_distance_raw, 0))::numeric, 4) AS \"单位里程电费(元/$length_unit)\",\n  COALESCE(cp_stats.dc_ratio, 0) AS \"快充比例(%)\"\nFROM cars c\nLEFT JOIN drive_stats d_stats ON d_stats.car_id = c.id\nLEFT JOIN cp_stats ON cp_stats.car_id = c.id\nORDER BY COALESCE(d_stats.total_distance_raw, 0) DESC;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -172,7 +172,7 @@
         "y": 9
       },
       "id": 13,
-      "description": "与官方电池健康度面板算法一致：取最近100次充电的平均容量 / 历史最大容量 × 100%。渐变色展示，与官方电池健康度页面视觉风格一致。",
+      "description": "取最近100次高SOC充电样本的平均容量 / 历史最大容量 × 100%。复用续航退化修正口径：默认仅使用SOC≥80%的样本（可复议，理想≥90%），降低低SOC外推噪声。",
       "options": {
         "displayMode": "gradient",
         "legend": {
@@ -208,7 +208,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH max_cap AS (\n  SELECT\n    cp.car_id,\n    MAX(c.rated_battery_range_km * (cars.efficiency * 100) / c.usable_battery_level) AS capacity\n  FROM charging_processes cp\n  INNER JOIN (\n    SELECT charging_process_id, MAX(date) AS last_date\n    FROM charges WHERE usable_battery_level > 0\n    GROUP BY charging_process_id\n  ) gcharges ON cp.id = gcharges.charging_process_id\n  INNER JOIN charges c ON c.charging_process_id = cp.id AND c.date = gcharges.last_date\n  INNER JOIN cars ON cars.id = cp.car_id\n  WHERE cp.end_date IS NOT NULL\n    AND cp.charge_energy_added >= cars.efficiency * 100\n  GROUP BY cp.car_id\n),\ncur_cap AS (\n  SELECT car_id, AVG(capacity) AS capacity\n  FROM (\n    SELECT\n      cp.car_id,\n      c.rated_battery_range_km * (cars.efficiency * 100) / c.usable_battery_level AS capacity,\n      ROW_NUMBER() OVER (PARTITION BY cp.car_id ORDER BY cp.end_date DESC, c.date DESC) AS rn\n    FROM charging_processes cp\n    INNER JOIN charges c ON c.charging_process_id = cp.id\n    INNER JOIN cars ON cars.id = cp.car_id\n    WHERE cp.end_date IS NOT NULL\n      AND cp.charge_energy_added >= cars.efficiency * 100\n      AND c.usable_battery_level > 0\n  ) t\n  WHERE rn <= 100\n  GROUP BY car_id\n)\nSELECT\n  COALESCE(cars.name, CONCAT('VIN ', RIGHT(cars.vin, 6))) AS \"车辆\",\n  ROUND(LEAST(100, cur_cap.capacity / NULLIF(max_cap.capacity, 0) * 100)::numeric, 1) AS \"电池健康度(%)\"\nFROM cars\nLEFT JOIN max_cap ON max_cap.car_id = cars.id\nLEFT JOIN cur_cap ON cur_cap.car_id = cars.id\nORDER BY \"电池健康度(%)\" DESC NULLS LAST;",
+          "rawSql": "WITH charge_samples AS (\n  SELECT\n    cp.car_id,\n    cp.end_date,\n    c.date,\n    c.rated_battery_range_km * (cars.efficiency * 100) / NULLIF(c.usable_battery_level, 0) AS capacity\n  FROM charging_processes cp\n  INNER JOIN (\n    SELECT charging_process_id, MAX(date) AS last_date\n    FROM charges\n    WHERE usable_battery_level >= 80 -- 可复议默认值: 复用续航退化 SOC >=80% 高质量样本口径，理想门槛 >=90%。\n    GROUP BY charging_process_id\n  ) gcharges ON cp.id = gcharges.charging_process_id\n  INNER JOIN charges c ON c.charging_process_id = cp.id AND c.date = gcharges.last_date\n  INNER JOIN cars ON cars.id = cp.car_id\n  WHERE cp.end_date IS NOT NULL\n    AND cp.charge_energy_added >= cars.efficiency * 100 -- 可复议默认值: 排除小补电样本。\n    AND c.usable_battery_level >= 80 -- 可复议默认值: 复用续航退化 SOC >=80% 高质量样本口径，理想门槛 >=90%。\n),\nmax_cap AS (\n  SELECT car_id, MAX(capacity) AS capacity\n  FROM charge_samples\n  GROUP BY car_id\n),\ncur_cap AS (\n  SELECT car_id, AVG(capacity) AS capacity\n  FROM (\n    SELECT\n      car_id,\n      capacity,\n      ROW_NUMBER() OVER (PARTITION BY car_id ORDER BY end_date DESC, date DESC) AS rn\n    FROM charge_samples\n  ) t\n  WHERE rn <= 100\n  GROUP BY car_id\n)\nSELECT\n  COALESCE(cars.name, CONCAT('VIN ', RIGHT(cars.vin, 6))) AS \"车辆\",\n  ROUND(LEAST(100, cur_cap.capacity / NULLIF(max_cap.capacity, 0) * 100)::numeric, 1) AS \"电池健康度(%)\"\nFROM cars\nLEFT JOIN max_cap ON max_cap.car_id = cars.id\nLEFT JOIN cur_cap ON cur_cap.car_id = cars.id\nORDER BY \"电池健康度(%)\" DESC NULLS LAST;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -299,7 +299,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "title": "各车总里程(km)",
+      "title": "各车总里程($length_unit)",
       "type": "bargauge",
       "targets": [
         {
@@ -310,7 +310,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND(COALESCE(SUM(d.distance), 0)::numeric, 0) AS \"总里程(km)\"\nFROM cars c\nLEFT JOIN drives d ON d.car_id = c.id AND d.end_date IS NOT NULL AND $__timeFilter(d.start_date)\nGROUP BY c.id, c.name, c.vin\nORDER BY \"总里程(km)\" DESC;",
+          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND(convert_km(COALESCE(SUM(d.distance), 0)::numeric, '$length_unit'), 0) AS \"总里程($length_unit)\"\nFROM cars c\nLEFT JOIN drives d ON d.car_id = c.id AND d.end_date IS NOT NULL AND $__timeFilter(d.start_date)\nGROUP BY c.id, c.name, c.vin\nORDER BY \"总里程($length_unit)\" DESC;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -373,7 +373,7 @@
         "y": 18
       },
       "id": 5,
-      "description": "能耗越低越省电。受驾驶风格、路况、温度影响，建议同时段对比更有参考价值。",
+      "description": "能耗越低越省电。仅统计已完成且 start_ideal_range_km > end_ideal_range_km 的能耗有效行程，分母为能耗样本里程；建议同时段对比更有参考价值。",
       "options": {
         "displayMode": "gradient",
         "legend": {
@@ -398,7 +398,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "title": "各车平均能耗(Wh/km)",
+      "title": "各车平均能耗(Wh/$length_unit)",
       "type": "bargauge",
       "targets": [
         {
@@ -409,7 +409,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND((SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency) / NULLIF(SUM(d.distance), 0) * 1000)::numeric, 1) AS \"平均能耗(Wh/km)\"\nFROM cars c\nLEFT JOIN drives d ON d.car_id = c.id\n  AND d.end_date IS NOT NULL\n  AND d.start_ideal_range_km > d.end_ideal_range_km\n  AND $__timeFilter(d.start_date)\nGROUP BY c.id, c.name, c.vin\nHAVING SUM(d.distance) > 0\nORDER BY \"平均能耗(Wh/km)\" ASC NULLS LAST;",
+          "rawSql": "WITH energy_drives AS (\n  SELECT\n    d.car_id,\n    d.distance,\n    (d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency AS energy_kwh\n  FROM drives d\n  JOIN cars c ON c.id = d.car_id\n  WHERE d.end_date IS NOT NULL\n    AND d.distance > 0\n    AND d.start_ideal_range_km > d.end_ideal_range_km\n    AND $__timeFilter(d.start_date)\n)\nSELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND((SUM(ed.energy_kwh) / NULLIF(convert_km(SUM(ed.distance)::numeric, '$length_unit'), 0) * 1000)::numeric, 1) AS \"平均能耗(Wh/$length_unit)\"\nFROM cars c\nLEFT JOIN energy_drives ed ON ed.car_id = c.id\nGROUP BY c.id, c.name, c.vin\nHAVING SUM(ed.distance) > 0\nORDER BY \"平均能耗(Wh/$length_unit)\" ASC NULLS LAST;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -512,7 +512,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND(COALESCE(SUM(effective_cost(cp.id, cp.cost)), 0)::numeric, 2) AS \"充电总费用(元)\"\nFROM cars c\nLEFT JOIN charging_processes cp ON cp.car_id = c.id AND effective_cost(cp.id, cp.cost) IS NOT NULL AND $__timeFilter(cp.start_date)\nGROUP BY c.id, c.name, c.vin\nORDER BY \"充电总费用(元)\" DESC;",
+          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND(COALESCE(SUM(effective_cost(cp.id, cp.cost)), 0)::numeric, 2) AS \"充电总费用(元)\"\nFROM cars c\nLEFT JOIN charging_processes cp ON cp.car_id = c.id AND cp.end_date IS NOT NULL AND effective_cost(cp.id, cp.cost) IS NOT NULL AND $__timeFilter(cp.start_date)\nGROUP BY c.id, c.name, c.vin\nORDER BY \"充电总费用(元)\" DESC;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -576,7 +576,7 @@
         "y": 27
       },
       "id": 8,
-      "description": "直流快充(>22kW)次数占总充电次数的比例。建议控制在30%以下，过高会加速电池老化。",
+      "description": "直流快充(>22kW)次数占总充电次数的比例。可复议默认值：>22kW 在中国/特斯拉场景下作为直流快充保守代理；不改为 >=22，避免把 22kW 边界交流会话算入快充。建议控制在30%以下，过高会加速电池老化。",
       "options": {
         "displayMode": "gradient",
         "legend": {
@@ -612,7 +612,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND(\n    (COUNT(DISTINCT CASE WHEN fast.max_power > 22 THEN cp.id END)::numeric /\n     NULLIF(COUNT(DISTINCT cp.id), 0) * 100)::numeric, 1\n  ) AS \"快充比例(%)\"\nFROM cars c\nLEFT JOIN charging_processes cp ON cp.car_id = c.id AND $__timeFilter(cp.start_date)\nLEFT JOIN LATERAL (\n  SELECT MAX(charger_power) AS max_power FROM charges WHERE charging_process_id = cp.id\n) fast ON true\nGROUP BY c.id, c.name, c.vin\nORDER BY \"快充比例(%)\" DESC NULLS LAST;",
+          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND(\n    (COUNT(DISTINCT CASE\n        -- 可复议默认值: 中国/特斯拉场景下 >22kW 作为直流快充保守代理；22kW 本身可能仍是交流/边界值。\n        WHEN fast.max_power > 22 THEN cp.id\n      END)::numeric /\n     NULLIF(COUNT(DISTINCT cp.id), 0) * 100)::numeric, 1\n  ) AS \"快充比例(%)\"\nFROM cars c\nLEFT JOIN charging_processes cp ON cp.car_id = c.id AND cp.end_date IS NOT NULL AND $__timeFilter(cp.start_date)\nLEFT JOIN LATERAL (\n  SELECT MAX(charger_power) AS max_power FROM charges WHERE charging_process_id = cp.id\n) fast ON true\nGROUP BY c.id, c.name, c.vin\nORDER BY \"快充比例(%)\" DESC NULLS LAST;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -769,7 +769,7 @@
         "y": 36
       },
       "id": 11,
-      "description": "每公里实际花费的电费，综合反映能耗效率与充电成本。数值越低越经济。",
+      "description": "单位里程实际花费的电费，分母为已完成行程总里程并按 $length_unit 转换；费用只统计已完成且有费用记录的充电。",
       "options": {
         "displayMode": "gradient",
         "legend": {
@@ -794,7 +794,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "title": "各车每公里电费(元/km)",
+      "title": "各车单位里程电费(元/$length_unit)",
       "type": "bargauge",
       "targets": [
         {
@@ -805,7 +805,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND((COALESCE(cp_stats.total_cost, 0) / NULLIF(d_stats.total_km, 0))::numeric, 4) AS \"每公里电费(元/km)\"\nFROM cars c\nLEFT JOIN (\n  SELECT car_id, SUM(distance) AS total_km\n  FROM drives\n  WHERE end_date IS NOT NULL AND $__timeFilter(start_date)\n  GROUP BY car_id\n) d_stats ON d_stats.car_id = c.id\nLEFT JOIN (\n  SELECT car_id, SUM(effective_cost(id, cost)) AS total_cost\n  FROM charging_processes\n  WHERE effective_cost(id, cost) IS NOT NULL AND $__timeFilter(start_date)\n  GROUP BY car_id\n) cp_stats ON cp_stats.car_id = c.id\nORDER BY \"每公里电费(元/km)\" ASC NULLS LAST;",
+          "rawSql": "WITH drive_stats AS (\n  SELECT car_id, convert_km(SUM(distance)::numeric, '$length_unit') AS total_distance\n  FROM drives\n  WHERE end_date IS NOT NULL AND $__timeFilter(start_date)\n  GROUP BY car_id\n),\ncp_stats AS (\n  SELECT car_id, SUM(effective_cost(id, cost)) AS total_cost\n  FROM charging_processes\n  WHERE end_date IS NOT NULL\n    AND effective_cost(id, cost) IS NOT NULL\n    AND $__timeFilter(start_date)\n  GROUP BY car_id\n)\nSELECT\n  COALESCE(c.name, CONCAT('VIN ', RIGHT(c.vin, 6))) AS \"车辆\",\n  ROUND((COALESCE(cp_stats.total_cost, 0) / NULLIF(drive_stats.total_distance, 0))::numeric, 4) AS \"单位里程电费(元/$length_unit)\"\nFROM cars c\nLEFT JOIN drive_stats ON drive_stats.car_id = c.id\nLEFT JOIN cp_stats ON cp_stats.car_id = c.id\nORDER BY \"单位里程电费(元/$length_unit)\" ASC NULLS LAST;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -836,7 +836,25 @@
     "comparison"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "TeslaMate"
+        },
+        "definition": "SELECT unit AS __value, unit AS __text FROM (SELECT COALESCE((SELECT unit_of_length FROM settings LIMIT 1), 'km') AS unit) s",
+        "hide": 2,
+        "includeAll": false,
+        "name": "length_unit",
+        "options": [],
+        "query": "SELECT unit AS __value, unit AS __text FROM (SELECT COALESCE((SELECT unit_of_length FROM settings LIMIT 1), 'km') AS unit) s",
+        "refresh": 1,
+        "regex": "",
+        "type": "query",
+        "regexApplyTo": "value"
+      }
+    ]
   },
   "time": {
     "from": "now-1y",

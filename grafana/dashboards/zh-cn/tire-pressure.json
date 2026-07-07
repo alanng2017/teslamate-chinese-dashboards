@@ -98,20 +98,7 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "car_id"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "车辆ID"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 7,
@@ -169,7 +156,7 @@
           ]
         }
       ],
-      "title": "当前胎压 ($pressure_unit)",
+      "title": "当前胎压（忽略时间范围）($pressure_unit)",
       "type": "stat"
     },
     {
@@ -219,31 +206,7 @@
           {
             "matcher": {
               "id": "byRegexp",
-              "options": "/.*_ts/"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "/.*left/"
-            },
-            "properties": [
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "/.*right/"
+              "options": "/.*[左右][前后].*/"
             },
             "properties": [
               {
@@ -261,18 +224,6 @@
               {
                 "id": "displayName",
                 "value": "行程ID"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "car_id"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "车辆ID"
               }
             ]
           }
@@ -306,7 +257,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH ps AS (\n\tSELECT \n\t\tdrive_id, \n\t\tdate,\n\t\tROW_NUMBER() OVER (PARTITION BY drive_id ORDER BY date ASC) as seqnum,\n\t\tconvert_tire_pressure(tpms_pressure_fl, '$pressure_unit') AS front_left,\n\t\tconvert_tire_pressure(tpms_pressure_fr, '$pressure_unit') AS front_right,\n\t\tconvert_tire_pressure(tpms_pressure_rl, '$pressure_unit') AS rear_left,\n\t\tconvert_tire_pressure(tpms_pressure_rr, '$pressure_unit') AS rear_right\n\tFROM positions\n\tWHERE\n\t\t$__timeFilter(date)\n\t\tAND tpms_pressure_fl IS NOT NULL\n\t\tAND tpms_pressure_fr IS NOT NULL\n    AND tpms_pressure_rl IS NOT NULL\n    AND tpms_pressure_rr IS NOT NULL\n\t\tAND drive_id IS NOT NULL\n\t\tAND car_id = $car_id\n)\nSELECT \n\tdrive_id,\n\tdate,\n\tfront_left AS \"左前\", \n\tfront_right AS \"右前\", \n\trear_left AS \"左后\", \n\trear_right AS \"右后\"\nFROM ps\nWHERE seqnum = 5\nORDER BY ps.drive_id DESC",
+          "rawSql": "WITH ps AS (\n\tSELECT \n\t\tdrive_id, \n\t\tdate,\n\t\tROW_NUMBER() OVER (PARTITION BY drive_id ORDER BY date ASC) as seqnum,\n\t\tCOUNT(*) OVER (PARTITION BY drive_id) as sample_count,\n\t\tconvert_tire_pressure(tpms_pressure_fl, '$pressure_unit') AS front_left,\n\t\tconvert_tire_pressure(tpms_pressure_fr, '$pressure_unit') AS front_right,\n\t\tconvert_tire_pressure(tpms_pressure_rl, '$pressure_unit') AS rear_left,\n\t\tconvert_tire_pressure(tpms_pressure_rr, '$pressure_unit') AS rear_right\n\tFROM positions\n\tWHERE\n\t\t$__timeFilter(date)\n\t\tAND tpms_pressure_fl IS NOT NULL\n\t\tAND tpms_pressure_fr IS NOT NULL\n    AND tpms_pressure_rl IS NOT NULL\n    AND tpms_pressure_rr IS NOT NULL\n\t\tAND drive_id IS NOT NULL\n\t\tAND car_id = $car_id\n)\nSELECT \n\tdrive_id,\n\tdate,\n\tfront_left AS \"左前\", \n\tfront_right AS \"右前\", \n\trear_left AS \"左后\", \n\trear_right AS \"右后\"\nFROM ps\nWHERE seqnum = CASE\n  WHEN sample_count >= 5 THEN 5\n  ELSE CEIL(sample_count / 2.0)::int -- 可复议默认值: 短行程不足 5 个有效胎压点时取中位有效点。\nEND\nORDER BY ps.drive_id DESC",
           "refId": "A",
           "select": [
             [
@@ -355,32 +306,7 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "car_id"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "车辆ID"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "drive_id"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "行程ID"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 7,
@@ -414,7 +340,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "WITH ps AS (\n\tSELECT \n\t\tROW_NUMBER() OVER (PARTITION BY drive_id ORDER BY date ASC) as seqnum,\n\t\tconvert_tire_pressure(tpms_pressure_fl, '$pressure_unit') AS front_left,\n\t\tconvert_tire_pressure(tpms_pressure_fr, '$pressure_unit') AS front_right,\n\t\tconvert_tire_pressure(tpms_pressure_rl, '$pressure_unit') AS rear_left,\n\t\tconvert_tire_pressure(tpms_pressure_rr, '$pressure_unit') AS rear_right\n\tFROM positions p\n\tWHERE\n\t\ttpms_pressure_fl IS NOT NULL\n\t\tAND tpms_pressure_fr IS NOT NULL\n    AND tpms_pressure_rl IS NOT NULL\n    AND tpms_pressure_rr IS NOT NULL\n\t\tAND drive_id = (\n\t\t\tSELECT id\n\t\t\tFROM drives\n\t\t\tWHERE \n\t\t\t\tcar_id = $car_id\n\t\t\t\tAND end_date IS NOT NULL\n\t\t\tORDER BY start_date DESC\n\t\t\tLIMIT 1\n\t\t)\n)\nSELECT \n\tfront_left AS \"左前\", \n\tfront_right AS \"右前\", \n\trear_left AS \"左后\", \n\trear_right AS \"右后\"\nFROM ps\nWHERE seqnum = 5",
+          "rawSql": "WITH ps AS (\n\tSELECT \n\t\tROW_NUMBER() OVER (PARTITION BY drive_id ORDER BY date ASC) as seqnum,\n\t\tCOUNT(*) OVER (PARTITION BY drive_id) as sample_count,\n\t\tconvert_tire_pressure(tpms_pressure_fl, '$pressure_unit') AS front_left,\n\t\tconvert_tire_pressure(tpms_pressure_fr, '$pressure_unit') AS front_right,\n\t\tconvert_tire_pressure(tpms_pressure_rl, '$pressure_unit') AS rear_left,\n\t\tconvert_tire_pressure(tpms_pressure_rr, '$pressure_unit') AS rear_right\n\tFROM positions p\n\tWHERE\n\t\ttpms_pressure_fl IS NOT NULL\n\t\tAND tpms_pressure_fr IS NOT NULL\n    AND tpms_pressure_rl IS NOT NULL\n    AND tpms_pressure_rr IS NOT NULL\n\t\tAND drive_id = (\n\t\t\tSELECT id\n\t\t\tFROM drives\n\t\t\tWHERE \n\t\t\t\tcar_id = $car_id\n\t\t\t\tAND end_date IS NOT NULL\n\t\t\tORDER BY start_date DESC\n\t\t\tLIMIT 1\n\t\t)\n)\nSELECT \n\tfront_left AS \"左前\", \n\tfront_right AS \"右前\", \n\trear_left AS \"左后\", \n\trear_right AS \"右后\"\nFROM ps\nWHERE seqnum = CASE\n  WHEN sample_count >= 5 THEN 5\n  ELSE sample_count -- 可复议默认值: 最后一次行驶不足 5 个有效胎压点时取最后一个有效点。\nEND",
           "refId": "A",
           "select": [
             [

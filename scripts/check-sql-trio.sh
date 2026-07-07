@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 校验 SQL 三件套（install-coord-functions / install-tou / install-indexes）
+# 校验 SQL 安装文件（install-coord-functions / install-unit-functions / install-tou / install-indexes）
 # 在所有 5 处用户可见入口中都被引用，避免日后加新 SQL 时漏改某处。
 #
 # 跑：bash scripts/check-sql-trio.sh
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 # 加新 SQL 时改这一行（让本脚本成为 source-of-truth）
-SQL_TRIO=(install-coord-functions install-tou install-indexes)
+SQL_TRIO=(install-coord-functions install-unit-functions install-tou install-indexes)
 
 # 5 处入口必须都引用所有 SQL 文件
 ENTRY_POINTS=(
@@ -28,7 +28,7 @@ ENTRY_POINTS=(
 cd "$(dirname "$0")/.." || exit 1
 
 fail=0
-echo "校验 SQL 三件套引用一致性..."
+echo "校验 SQL 安装文件引用一致性..."
 echo "  期待: ${SQL_TRIO[*]}"
 echo
 
@@ -66,7 +66,7 @@ done
 
 echo
 if [[ $fail -eq 0 ]]; then
-    echo "✅ 全部 SQL 三件套引用一致，sql/ 文件都存在"
+    echo "✅ 全部 SQL 安装文件引用一致，sql/ 文件都存在"
     exit 0
 else
     echo "❌ 发现引用遗漏 / 文件缺失，发版前必须修复"

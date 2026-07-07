@@ -58,7 +58,7 @@
       },
       "id": 100,
       "panels": [],
-      "title": "省钱概览",
+      "title": "能量匹配成本概览",
       "type": "row",
       "fieldConfig": {
         "defaults": {},
@@ -128,7 +128,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((\n    COALESCE(SUM(d.distance), 0) * $fuel_efficiency / 100.0 * $fuel_price\n    - COALESCE((SELECT SUM(effective_cost(id, cost)) FROM charging_processes WHERE car_id = $car_id AND effective_cost(id, cost) IS NOT NULL AND $__timeFilter(start_date)), 0)\n  )::numeric, 2) AS savings\nFROM drives d\nWHERE d.car_id = $car_id AND $__timeFilter(d.start_date);",
+          "rawSql": "WITH drive_energy AS (\n  SELECT\n    COALESCE(SUM(d.distance), 0) AS km,\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0) AS kwh\n  FROM drives d\n  JOIN cars c ON c.id = d.car_id\n  WHERE d.car_id = $car_id\n    AND d.end_date IS NOT NULL\n    AND d.distance > 0\n    AND d.start_ideal_range_km > d.end_ideal_range_km\n    AND $__timeFilter(d.start_date)\n),\ncharge_rate AS (\n  SELECT\n    SUM(effective_cost(cp.id, cp.cost)) / NULLIF(SUM(GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0))), 0) AS yuan_per_kwh\n  FROM charging_processes cp\n  WHERE cp.car_id = $car_id\n    AND cp.end_date IS NOT NULL\n    AND effective_cost(cp.id, cp.cost) IS NOT NULL\n    AND GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0)) > 0\n    AND $__timeFilter(cp.start_date)\n)\nSELECT\n  -- ⚠ Owner 确认: 成本口径从充电现金流改为能量匹配估算；缺电价时返回空值，避免把未知电价当免费。\n  ROUND((km * $fuel_efficiency / 100.0 * $fuel_price - kwh * yuan_per_kwh)::numeric, 2) AS savings\nFROM drive_energy CROSS JOIN charge_rate;\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -207,7 +207,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND((COALESCE(SUM(distance), 0) * $fuel_efficiency / 100.0 * $fuel_price)::numeric, 2) AS fuel_cost\nFROM drives\nWHERE car_id = $car_id AND $__timeFilter(start_date);",
+          "rawSql": "SELECT\n  ROUND((COALESCE(SUM(distance), 0) * $fuel_efficiency / 100.0 * $fuel_price)::numeric, 2) AS fuel_cost\nFROM drives\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND distance > 0\n  AND $__timeFilter(start_date);",
           "refId": "A",
           "sql": {
             "columns": [
@@ -251,7 +251,7 @@
           },
           "unit": "none",
           "decimals": 2,
-          "displayName": "实际充电费用(元)"
+          "displayName": "匹配电费估算(元)"
         },
         "overrides": []
       },
@@ -286,7 +286,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  ROUND(COALESCE(SUM(effective_cost(id, cost)), 0)::numeric, 2) AS charge_cost\nFROM charging_processes\nWHERE car_id = $car_id AND effective_cost(id, cost) IS NOT NULL AND $__timeFilter(start_date);",
+          "rawSql": "WITH drive_energy AS (\n  SELECT COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0) AS kwh\n  FROM drives d\n  JOIN cars c ON c.id = d.car_id\n  WHERE d.car_id = $car_id\n    AND d.end_date IS NOT NULL\n    AND d.distance > 0\n    AND d.start_ideal_range_km > d.end_ideal_range_km\n    AND $__timeFilter(d.start_date)\n),\ncharge_rate AS (\n  SELECT\n    SUM(effective_cost(cp.id, cp.cost)) / NULLIF(SUM(GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0))), 0) AS yuan_per_kwh\n  FROM charging_processes cp\n  WHERE cp.car_id = $car_id\n    AND cp.end_date IS NOT NULL\n    AND effective_cost(cp.id, cp.cost) IS NOT NULL\n    AND GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0)) > 0\n    AND $__timeFilter(cp.start_date)\n)\nSELECT\n  -- ⚠ Owner 确认: 以行驶能耗匹配所选时间范围平均电价，不再直接展示同窗充电现金流。\n  ROUND((kwh * yuan_per_kwh)::numeric, 2) AS charge_cost\nFROM drive_energy CROSS JOIN charge_rate;\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -373,7 +373,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  CASE WHEN fuel_cost > 0 THEN\n    ROUND(((fuel_cost - charge_cost) / fuel_cost * 100)::numeric, 1)\n  ELSE 0 END AS save_pct\nFROM (\n  SELECT\n    COALESCE(SUM(d.distance), 0) * $fuel_efficiency / 100.0 * $fuel_price AS fuel_cost,\n    COALESCE((SELECT SUM(effective_cost(id, cost)) FROM charging_processes WHERE car_id = $car_id AND effective_cost(id, cost) IS NOT NULL AND $__timeFilter(start_date)), 0) AS charge_cost\n  FROM drives d\n  WHERE d.car_id = $car_id AND $__timeFilter(d.start_date)\n) sub;",
+          "rawSql": "WITH drive_energy AS (\n  SELECT\n    COALESCE(SUM(d.distance), 0) AS km,\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0) AS kwh\n  FROM drives d\n  JOIN cars c ON c.id = d.car_id\n  WHERE d.car_id = $car_id\n    AND d.end_date IS NOT NULL\n    AND d.distance > 0\n    AND d.start_ideal_range_km > d.end_ideal_range_km\n    AND $__timeFilter(d.start_date)\n),\ncharge_rate AS (\n  SELECT\n    SUM(effective_cost(cp.id, cp.cost)) / NULLIF(SUM(GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0))), 0) AS yuan_per_kwh\n  FROM charging_processes cp\n  WHERE cp.car_id = $car_id\n    AND cp.end_date IS NOT NULL\n    AND effective_cost(cp.id, cp.cost) IS NOT NULL\n    AND GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0)) > 0\n    AND $__timeFilter(cp.start_date)\n)\nSELECT\n  CASE WHEN fuel_cost > 0 THEN ROUND(((fuel_cost - matched_charge_cost) / fuel_cost * 100)::numeric, 1) ELSE 0 END AS save_pct\nFROM (\n  SELECT\n    -- ⚠ Owner 确认: 成本口径从现金流改为能量匹配估算。\n    km * $fuel_efficiency / 100.0 * $fuel_price AS fuel_cost,\n    kwh * yuan_per_kwh AS matched_charge_cost\n  FROM drive_energy CROSS JOIN charge_rate\n) sub;\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -407,7 +407,7 @@
       },
       "id": 101,
       "panels": [],
-      "title": "费用趋势",
+      "title": "能量匹配成本趋势",
       "type": "row",
       "fieldConfig": {
         "defaults": {},
@@ -450,7 +450,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "实际充电"
+              "options": "匹配电费估算"
             },
             "properties": [
               {
@@ -493,7 +493,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('month', timezone('UTC', start_date), '$__timezone') AS time,\n  ROUND((SUM(distance) * $fuel_efficiency / 100.0 * $fuel_price)::numeric, 2) AS \"燃油等价\"\nFROM drives\nWHERE car_id = $car_id AND $__timeFilter(start_date)\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "SELECT\n  date_trunc('month', timezone('UTC', start_date), '$__timezone') AS time,\n  ROUND((SUM(distance) * $fuel_efficiency / 100.0 * $fuel_price)::numeric, 2) AS \"燃油等价\"\nFROM drives\nWHERE car_id = $car_id\n  AND end_date IS NOT NULL\n  AND distance > 0\n  AND $__timeFilter(start_date)\nGROUP BY 1\nORDER BY 1;\n",
           "refId": "A"
         },
         {
@@ -504,12 +504,12 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('month', timezone('UTC', start_date), '$__timezone') AS time,\n  ROUND(COALESCE(SUM(effective_cost(id, cost)), 0)::numeric, 2) AS \"实际充电\"\nFROM charging_processes\nWHERE car_id = $car_id AND effective_cost(id, cost) IS NOT NULL AND $__timeFilter(start_date)\nGROUP BY 1\nORDER BY 1;",
+          "rawSql": "WITH drive_m AS (\n  SELECT\n    date_trunc('month', timezone('UTC', d.start_date), '$__timezone') AS time,\n    SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency) AS drive_kwh\n  FROM drives d\n  JOIN cars c ON c.id = d.car_id\n  WHERE d.car_id = $car_id\n    AND d.end_date IS NOT NULL\n    AND d.distance > 0\n    AND d.start_ideal_range_km > d.end_ideal_range_km\n    AND $__timeFilter(d.start_date)\n  GROUP BY 1\n),\ncharge_m AS (\n  SELECT\n    date_trunc('month', timezone('UTC', cp.start_date), '$__timezone') AS time,\n    SUM(effective_cost(cp.id, cp.cost)) / NULLIF(SUM(GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0))), 0) AS yuan_per_kwh\n  FROM charging_processes cp\n  WHERE cp.car_id = $car_id\n    AND cp.end_date IS NOT NULL\n    AND effective_cost(cp.id, cp.cost) IS NOT NULL\n    AND GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0)) > 0\n    AND $__timeFilter(cp.start_date)\n  GROUP BY 1\n),\noverall_rate AS (\n  SELECT\n    SUM(effective_cost(cp.id, cp.cost)) / NULLIF(SUM(GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0))), 0) AS yuan_per_kwh\n  FROM charging_processes cp\n  WHERE cp.car_id = $car_id\n    AND cp.end_date IS NOT NULL\n    AND effective_cost(cp.id, cp.cost) IS NOT NULL\n    AND GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0)) > 0\n    AND $__timeFilter(cp.start_date)\n)\nSELECT\n  d.time,\n  -- ⚠ Owner 确认: 月度电费按当月行驶能耗 × 当月均价估算；当月无电价时回退所选范围均价，仍缺失则返回空值。\n  ROUND((d.drive_kwh * COALESCE(c.yuan_per_kwh, o.yuan_per_kwh))::numeric, 2) AS \"匹配电费估算\"\nFROM drive_m d\nLEFT JOIN charge_m c USING (time)\nCROSS JOIN overall_rate o\nORDER BY 1;\n",
           "refId": "B"
         }
       ],
-      "description": "燃油等价费用根据里程×油耗×油价估算；实际充电费用需在 TeslaMate 中手动录入，未录入时显示为0。",
-      "title": "月度费用对比（燃油 vs 实际充电）",
+      "description": "⚠需 Owner 确认：燃油等价费用按行驶里程估算；电费按行驶能耗×同月平均电价匹配，避免充/驶跨月现金流错配。",
+      "title": "月度费用对比（燃油 vs 匹配电费）",
       "type": "timeseries"
     },
     {
@@ -578,8 +578,8 @@
           }
         }
       ],
-      "description": "按充电开始时间段统计费用分布。需在 TeslaMate 中手动录入每次充电费用后才会显示数据。",
-      "title": "充电时段费用分布",
+      "description": "现金流·仅参考：按充电开始时间段统计费用分布。需在 TeslaMate 中手动录入每次充电费用后才会显示数据。",
+      "title": "充电时段费用分布（现金流·仅参考）",
       "type": "piechart"
     },
     {
@@ -742,7 +742,7 @@
         "showThresholdMarkers": true
       },
       "pluginVersion": "11.6.1",
-      "description": "今年已用充电费用占年度预算($annual_budget 元)的百分比。绿色<70%，黄色70-90%，红色>90%",
+      "description": "现金流·仅参考：今年已用充电费用占年度预算($annual_budget 元)的百分比。可复议默认阈值：绿色<70%，黄色70-90%，红色>90%。",
       "targets": [
         {
           "datasource": {
@@ -773,7 +773,7 @@
           }
         }
       ],
-      "title": "今年充电费用 vs 年度预算",
+      "title": "今年充电费用 vs 年度预算（现金流·仅参考）",
       "type": "gauge"
     },
     {
@@ -796,7 +796,7 @@
           },
           "unit": "none",
           "decimals": 4,
-          "displayName": "每公里电费(元/km)"
+          "displayName": "能量匹配电费(元/km)"
         },
         "overrides": []
       },
@@ -831,7 +831,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  CASE WHEN total_km > 0 THEN ROUND((total_cost / total_km)::numeric, 4) ELSE 0 END AS cost_per_km\nFROM (\n  SELECT\n    COALESCE((SELECT SUM(effective_cost(id, cost)) FROM charging_processes WHERE car_id = $car_id AND effective_cost(id, cost) IS NOT NULL AND $__timeFilter(start_date)), 0) AS total_cost,\n    COALESCE(SUM(distance), 0) AS total_km\n  FROM drives WHERE car_id = $car_id AND $__timeFilter(start_date)\n) sub;",
+          "rawSql": "WITH drive_energy AS (\n  SELECT\n    COALESCE(SUM(d.distance), 0) AS km,\n    COALESCE(SUM((d.start_ideal_range_km - d.end_ideal_range_km) * c.efficiency), 0) AS kwh\n  FROM drives d\n  JOIN cars c ON c.id = d.car_id\n  WHERE d.car_id = $car_id\n    AND d.end_date IS NOT NULL\n    AND d.distance > 0\n    AND d.start_ideal_range_km > d.end_ideal_range_km\n    AND $__timeFilter(d.start_date)\n),\ncharge_rate AS (\n  SELECT\n    SUM(effective_cost(cp.id, cp.cost)) / NULLIF(SUM(GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0))), 0) AS yuan_per_kwh\n  FROM charging_processes cp\n  WHERE cp.car_id = $car_id\n    AND cp.end_date IS NOT NULL\n    AND effective_cost(cp.id, cp.cost) IS NOT NULL\n    AND GREATEST(COALESCE(cp.charge_energy_added, 0), COALESCE(cp.charge_energy_used, 0)) > 0\n    AND $__timeFilter(cp.start_date)\n)\nSELECT\n  CASE WHEN km > 0 THEN ROUND((kwh * yuan_per_kwh / km)::numeric, 4) ELSE 0 END AS cost_per_km\nFROM drive_energy CROSS JOIN charge_rate;\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -875,7 +875,7 @@
           },
           "unit": "none",
           "decimals": 2,
-          "displayName": "预计全年费用(元)"
+          "displayName": "预计全年费用(现金流·参考)"
         },
         "overrides": []
       },
@@ -886,7 +886,7 @@
         "y": 20
       },
       "id": 10,
-      "description": "基于最近 30 天充电费用 × 12 的外推估算，比 YTD 线性外推更稳健（避免年初数据量小时方差过大）。如果近 30 天未充电则显示为 0。",
+      "description": "现金流·仅参考：基于最近 30 天充电费用 × 365/30 的外推估算。可复议默认窗口：30 天；如果近 30 天未充电则显示为 0。",
       "options": {
         "colorMode": "background",
         "graphMode": "none",

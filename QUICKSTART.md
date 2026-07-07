@@ -516,7 +516,7 @@ docker compose restart grafana
 >
 > 本项目 v1.4.2 把这一切变成两步操作。**海外用户也别走开 —— 谷歌中文路网在中国大陆区域同样是 GCJ-02，本方案一并自动处理。**
 
-### 一步：装一次 PostgreSQL SQL 三件套（坐标函数 + 分时电价 + 性能索引）
+### 一步：装一次 PostgreSQL SQL 安装文件（坐标函数 + 单位换算 + 分时电价 + 性能索引）
 
 **新装用户（v1.4.2+ 一键脚本装的）跳过本节** —— 一键脚本已自动装好。
 
@@ -668,6 +668,7 @@ python3 scripts/wrap-cost-with-tou-view.py --revert
 ### 详细文档
 
 - [`sql/install-tou.sql`](sql/install-tou.sql) — 表/函数/触发器/视图全部 schema
+- [`sql/install-unit-functions.sql`](sql/install-unit-functions.sql) — 单位换算函数（里程 / 温度 / 海拔 / 胎压）
 - [`sql/install-indexes.sql`](sql/install-indexes.sql) — 性能索引（v1.6.1+）
 - [`scripts/setup-tou.sh`](scripts/setup-tou.sh) — CLI 命令清单
 - 「⚡ 分时电价配置」仪表盘内置审计面板 — 时段空缺/重叠/月份缺失自动检测

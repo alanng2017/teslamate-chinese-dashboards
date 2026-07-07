@@ -78,7 +78,7 @@
 > # 1. 拉新镜像（带 volkovlabs-form-panel 插件 + 45 个仪表盘 — 该插件给「⚡ 分时电价配置」面板提供按钮交互）
 > docker compose pull && docker compose up -d
 >
-> # 2. 装 SQL 三件套（坐标函数 + 分时电价 + 性能索引，远程 curl 不用 git clone）
+> # 2. 装 SQL 安装文件（坐标函数 + 单位换算 + 分时电价 + 性能索引，远程 curl 不用 git clone）
 >
 > # 默认用 main（跟 :latest 镜像同步）。担心仓库被劫持的话把 main 替换成具体 tag（如 v1.6.2）锁版本：
 > REF=main   # 或 v1.6.2
@@ -87,7 +87,7 @@
 > DB=$(docker compose ps -q database)
 > [ -z "$DB" ] && { echo "❌ database 容器没起来，先跑 docker compose up -d 再来"; exit 1; }
 >
-> for f in install-coord-functions install-tou install-indexes; do
+> for f in install-coord-functions install-unit-functions install-tou install-indexes; do
 >   curl -fsSL "https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/${REF}/sql/${f}.sql" \
 >     | docker exec -i "$DB" psql -U teslamate -d teslamate
 > done
@@ -392,9 +392,9 @@ docker compose pull grafana
 docker compose up -d grafana
 ```
 
-> ⚠️ 以上**只更新 Grafana 镜像和仪表盘**。若某版改动了 SQL（坐标函数 / 分时电价 / 索引），还要重装 SQL 三件套，否则分时电价 / 地图等面板会报错 —— 一键安装用户直接重跑 `simple-deploy.sh`（自动进升级模式装 SQL），其他用户见上方 [升级方法 A/B/C/D](#upgrade-v16)。纯仪表盘版本（如 v1.7.10）用上面两条命令即可。
+> ⚠️ 以上**只更新 Grafana 镜像和仪表盘**。若某版改动了 SQL（坐标函数 / 单位换算 / 分时电价 / 索引），还要重装 SQL 安装文件，否则分时电价 / 地图 / 单位换算等面板会报错 —— 一键安装用户直接重跑 `simple-deploy.sh`（自动进升级模式装 SQL），其他用户见上方 [升级方法 A/B/C/D](#upgrade-v16)。纯仪表盘版本（如 v1.7.10）用上面两条命令即可。
 >
-> 🔎 **典型报错**：地图整页 / 分时电价面板报 `function lat_for_map(...) does not exist`、`function effective_cost(...) does not exist` 之类 —— **这是没装/没重装 SQL 三件套，不是 PostgreSQL 版本问题，别去升级 PG**。重跑上面的 SQL 安装即可（坐标函数在 `install-coord-functions.sql`、分时电价在 `install-tou.sql`）。
+> 🔎 **典型报错**：地图整页 / 分时电价 / 单位换算面板报 `function lat_for_map(...) does not exist`、`function effective_cost(...) does not exist`、`function convert_km(...) does not exist` 之类 —— **这是没装/没重装 SQL 安装文件，不是 PostgreSQL 版本问题，别去升级 PG**。重跑上面的 SQL 安装即可（坐标函数在 `install-coord-functions.sql`、单位换算在 `install-unit-functions.sql`、分时电价在 `install-tou.sql`）。
 
 > ⚠️ **如果更新后 Dashboard 仍显示旧版本**，说明 Grafana 数据卷有缓存残留，执行以下命令重置（车辆数据不受影响）：
 > ```bash
@@ -454,7 +454,7 @@ services:
 
 ## 🔒 SQL 远程拉取的信任模型
 
-升级路径中的所有「SQL 三件套」（`install-coord-functions` / `install-tou` / `install-indexes`）都是从 GitHub 拉到本地用 `psql` 执行。这是**典型的 `curl | bash` 信任模型**：
+升级路径中的所有「SQL 安装文件」（`install-coord-functions` / `install-unit-functions` / `install-tou` / `install-indexes`）都是从 GitHub 拉到本地用 `psql` 执行。这是**典型的 `curl | bash` 信任模型**：
 
 - ✅ **传输安全**：HTTPS + GitHub 证书，中间人无法篡改
 - ⚠️ **来源信任**：你信任 `wjsall/teslamate-chinese-dashboards` 仓库的内容
