@@ -2738,7 +2738,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n\tconvert_km(avg(speed)::numeric, '$length_unit') AS speed_${length_unit}h\nFROM positions\nWHERE car_id = $car_id AND $__timeFilter(date)",
+          "rawSql": "WITH pts AS (\n\tSELECT speed, EXTRACT(EPOCH FROM (LEAD(date) OVER (ORDER BY date) - date)) AS dt\n\tFROM positions\n\tWHERE car_id = $car_id AND $__timeFilter(date) AND speed IS NOT NULL\n)\n-- 时间加权平均:流数据停车时降采样,点平均会虚高;60s gap 封顶(可复议)\nSELECT\n\tconvert_km((SUM(speed * dt) / NULLIF(SUM(dt), 0))::numeric, '$length_unit') AS speed_${length_unit}h\nFROM pts\nWHERE dt BETWEEN 0 AND 60",
           "refId": "A",
           "sql": {
             "columns": [
