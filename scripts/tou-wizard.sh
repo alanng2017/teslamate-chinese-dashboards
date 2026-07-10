@@ -3,7 +3,7 @@
 #
 # 5 步从零到能用：
 #   1. 选择城市 / 自定义分时电价
-#   2. 选择给哪个地理围栏配分时电价
+#   2. 选择给哪个地理围栏配分时电价，或设为全局默认
 #   3. 可选覆盖默认电价（按你账单填）
 #   4. 是否对快充也启用
 #   5. 试算最近一笔充电对账
@@ -39,7 +39,9 @@ fi
 # ============================================================
 # 横幅
 # ============================================================
-clear
+if [ -t 1 ] && [ -n "${TERM:-}" ] && [ "$TERM" != "dumb" ]; then
+    clear || true
+fi
 cat <<'EOF'
 ═══════════════════════════════════════════════
   ⚡ TeslaMate 中文版分时电价配置向导
@@ -67,8 +69,8 @@ echo ""
 
 # 城市列表与 install-tou.sql 的 apply_city_template() 函数 CASE 分支对应
 # 用 _ 占位 0 号槽，让用户输入的 1-based 序号直接当下标用（避免 ${cities[@]} 紧凑化下标的坑）
-declare -a cities=(_ beijing shanghai shenzhen guangzhou zhejiang jiangsu)
-declare -a displays=(_ "北京" "上海" "深圳" "广州" "浙江（杭州）" "江苏（南京，含夏冬尖峰）")
+declare -a cities=(_ beijing shanghai shenzhen guangzhou zhejiang jiangsu wuhan)
+declare -a displays=(_ "北京" "上海" "深圳" "广州" "浙江（杭州）" "江苏（南京，含夏冬尖峰）" "武汉")
 for i in $(seq 1 $((${#cities[@]} - 1))); do
     printf "  ${CYAN}%d)${NC} %s\n" "$i" "${displays[$i]}"
 done
@@ -92,20 +94,28 @@ fi
 echo ""
 echo -e "${BOLD}[2/4] 给哪个充电点配分时电价？${NC}"
 echo ""
-echo "你的地理围栏列表："
+echo "你的收藏点列表（数据库中称地理围栏）："
 docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -c "
 SELECT id, name FROM geofences ORDER BY name" 2>&1 | grep -vE '^[(\s].*rows\)' | sed 's/^/  /'
 echo ""
+echo "直接回车 = 全局默认（用于无收藏点 / 无位置信息的充电）"
 read -p "> 输入地理围栏的「名字」（如 仁安玺苑 / 公司）: " geofence_name
 
-geofence_id=$(docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -t -A \
-  -v gname="$geofence_name" \
-  -c "SELECT id FROM geofences WHERE name = :'gname'" 2>/dev/null | tr -d '[:space:]')
-if [ -z "$geofence_id" ]; then
-    echo -e "${RED}✗ 找不到地理围栏「$geofence_name」${NC}"
-    exit 1
+if [ -z "$geofence_name" ]; then
+    geofence_id="NULL"
+    geofence_target="--global"
+    echo -e "${GREEN}  ✓ 使用全局默认${NC}"
+else
+    geofence_id=$(docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -t -A \
+      -v gname="$geofence_name" \
+      -c "SELECT id FROM geofences WHERE name = :'gname'" 2>/dev/null | tr -d '[:space:]')
+    if [ -z "$geofence_id" ]; then
+        echo -e "${RED}✗ 找不到地理围栏「${geofence_name}」${NC}"
+        exit 1
+    fi
+    geofence_target="$geofence_name"
+    echo -e "${GREEN}  ✓ geofence_id = $geofence_id${NC}"
 fi
-echo -e "${GREEN}  ✓ geofence_id = $geofence_id${NC}"
 
 # ============================================================
 # Step 3: 导入模板（或自定义）
@@ -143,7 +153,7 @@ if [ "$CUSTOM" = "1" ]; then
 
     # 经过 require_* 校验，4 个变量都已是干净数字，可安全拼入 SQL
     docker exec -i "$DB_CONTAINER" psql -U teslamate -d teslamate <<EOF
-DELETE FROM tou_rates WHERE geofence_id = $geofence_id;
+DELETE FROM tou_rates WHERE geofence_id IS NOT DISTINCT FROM $geofence_id;
 INSERT INTO tou_rates (geofence_id, hour_start, hour_end, rate, label, timezone) VALUES
   ($geofence_id, $peak_start, $peak_end, $peak_rate, '峰', 'Asia/Shanghai'),
   ($geofence_id, $valley_start, $valley_end, $valley_rate, '谷', 'Asia/Shanghai');
@@ -151,7 +161,7 @@ EOF
     echo -e "${GREEN}  ✓ 自定义配置已写入${NC}"
 else
     echo -e "${BOLD}[3/4] 导入 $CITY 模板${NC}"
-    bash "$SETUP" import "$CITY" "$geofence_name" >/dev/null
+    bash "$SETUP" import "$CITY" "$geofence_target" >/dev/null
     echo -e "${GREEN}  ✓ 模板已导入${NC}"
     echo ""
     echo -e "${YELLOW}⚠ 模板里的单价是 2025 年参考值，你账单可能不一样。${NC}"
@@ -169,9 +179,8 @@ echo "  启用后需要再为快充地点单独配置时段 + 单价"
 read -p "  [y/N]: " enable_dc
 if [ "$enable_dc" = "y" ] || [ "$enable_dc" = "Y" ]; then
     echo ""
-    echo "  跳过此向导 —— 快充配置请手动跑："
-    echo "  ${CYAN}bash $SETUP import dc-fast-charge <快充点的 geofence 名>${NC}"
-    echo "  然后 UPDATE 单价为你 App 看到的实际值"
+    echo "  快充没有通用城市模板；请在 Grafana「⚡ 分时电价配置」中"
+    echo "  为具体快充点新增规则、勾选 DC，并按充电 App 账单填写实际单价。"
 fi
 
 # ============================================================
@@ -183,7 +192,22 @@ echo -e "${GREEN}  ✓ 分时电价配置完成${NC}"
 echo "═══════════════════════════════════════════════"
 echo ""
 echo -e "${BOLD}最近一笔充电对账：${NC}"
-bash "$SETUP" test || true
+test_output=""
+if test_output=$(bash "$SETUP" test 2>&1); then
+    printf '%s\n' "$test_output"
+else
+    test_status=$?
+    printf '%s\n' "$test_output"
+    echo ""
+    if [ "$test_status" -eq 2 ]; then
+        echo -e "${YELLOW}⚠ 配置完成，但暂无适用的历史充电记录可供验收${NC}（不代表配置有误）"
+        echo "  之后可手动核对：bash $SETUP test <充电ID>"
+    else
+        echo -e "${RED}✗ 配置已写入，但验收遇到 SQL 或数据库连接错误${NC}"
+        echo "  请根据上方错误检查 PostgreSQL 容器、连接和分时电价函数后重试。"
+        exit 1
+    fi
+fi
 echo ""
 echo "下一步:"
 echo "  ${CYAN}bash $SETUP list${NC}                    查看所有 分时电价配置"

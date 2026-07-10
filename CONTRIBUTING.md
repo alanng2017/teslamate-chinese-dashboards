@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢您对 TeslaMate 中文 Dashboard 项目的关注！
+感谢您对 TeslaMate 中文仪表盘项目的关注！
 
 ## 🎯 如何贡献
 
@@ -8,7 +8,7 @@
 
 如果您发现：
 - 翻译错误或不准确
-- Dashboard 显示异常
+- 仪表盘显示异常
 - 功能缺失
 
 请提交 [GitHub Issue](https://github.com/wjsall/teslamate-chinese-dashboards/issues)，包含：
@@ -93,10 +93,13 @@
 推荐用 `docker compose` 跑完整 stack 测：
 
 ```bash
-# 仓库根目录跑（已含 docker-compose.yml）
-docker compose up -d
-# 访问 http://localhost:3000，找到你改的 dashboard 验证翻译
+# 仓库根目录跑
+docker compose -f docker-compose.dev.yml up -d
 ```
+
+开发环境也需要坐标、单位换算、分时电价和性能索引四组 SQL 对象。面向用户的安装顺序与失败处理只在 [故障排查手册的权威循环](TROUBLESHOOTING.md#repair-sql-install) 维护；本地调试当前分支时，把其中的 `docker compose` 改为 `docker compose -f docker-compose.dev.yml`，并把远程 `curl` 输入替换为当前工作树对应的 `sql/*.sql` 文件。任一文件失败都应停止。
+
+然后访问 `http://localhost:3000`，找到你修改的仪表盘验证翻译。
 
 如果只想验证 JSON 语法：
 
@@ -120,7 +123,7 @@ type(scope): 简短描述
 
 # 示例:
 fix(dashboard): 修复概览页面的翻译错误
-feat(dashboard): 新增XX Dashboard的汉化
+feat(dashboard): 新增 XX 仪表盘的汉化
 docs(readme): 更新安装说明
 ```
 

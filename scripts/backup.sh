@@ -61,8 +61,8 @@ if [ -z "$DB_CONTAINER" ]; then
         DB_CONTAINER="$(detect_db_container || true)"
     else
         # 注意：与 lib/detect-containers.sh 的 grep 分支保持一致
-        DB_CONTAINER="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -iE 'teslamate.*database|teslamate.*postgres' | head -1)"
-        [ -z "$DB_CONTAINER" ] && DB_CONTAINER="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -iE '^database$|^postgres$' | head -1)"
+        DB_CONTAINER="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -iE 'teslamate.*database|teslamate.*postgres' | head -1 || true)"
+        [ -z "$DB_CONTAINER" ] && DB_CONTAINER="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -iE '^database$|^postgres$' | head -1 || true)"
     fi
 fi
 [ -z "$DB_CONTAINER" ] && die "找不到 PostgreSQL 容器。请确认 TeslaMate 在运行，或用 DB_CONTAINER=容器名 显式指定。"
@@ -73,18 +73,18 @@ LOGFILE="$BACKUP_DIR/backup.log"
 # 把后续 stdout/stderr 追加进日志文件（同时仍打印到终端）
 exec > >(tee -a "$LOGFILE") 2>&1
 
-STAMP="$(date '+%Y%m%d_%H%M')"
+STAMP="$(date '+%Y%m%d_%H%M%S')"
 FINAL="$BACKUP_DIR/teslamate-$STAMP.dump"
 TMP="$BACKUP_DIR/.teslamate-$STAMP.dump.tmp"
 
-log "===== 开始备份（容器：$DB_CONTAINER，目录：$BACKUP_DIR，保留：$KEEP 份）====="
+log "===== 开始备份（容器：${DB_CONTAINER}，目录：${BACKUP_DIR}，保留：$KEEP 份）====="
 
 # ---- 1. 导出（-Fc 自定义格式，压缩 + 可被 pg_restore 选择性恢复）----
 rc=0
 docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" -Fc "$DB_NAME" > "$TMP" || rc=$?
 if [ "$rc" -ne 0 ]; then
     rm -f "$TMP"
-    die "pg_dump 失败（退出码 $rc）。未产出备份，旧备份保持不动。"
+    die "pg_dump 失败（退出码 ${rc}）。未产出备份，旧备份保持不动。"
 fi
 
 # ---- 2. 校验：文件非空 ----
@@ -104,7 +104,7 @@ fi
 mv -f "$TMP" "$FINAL"
 chmod 600 "$FINAL" 2>/dev/null || true   # dump 含定位历史 + 加密 token，锁到仅本人可读
 HUMAN_SIZE=$(du -h "$FINAL" 2>/dev/null | cut -f1)
-log "✅ 备份成功：$FINAL（$HUMAN_SIZE）"
+log "✅ 备份成功：${FINAL}（${HUMAN_SIZE}）"
 
 # ---- 4.5 配置快照：默认把 docker-compose.yml（含 ENCRYPTION_KEY）一起备份，让这份备份能独立恢复 ----
 if [ "$INCLUDE_CONFIG" != "0" ]; then
@@ -118,18 +118,18 @@ if [ "$INCLUDE_CONFIG" != "0" ]; then
         if [ -n "$cand" ] && [ -f "$cand" ]; then cf="$cand"; break; fi
     done
     if [ -z "$cf" ]; then
-        log "⚠ 没找到 docker-compose.yml，本份备份不含密钥。恢复时需另备 ENCRYPTION_KEY（或设 COMPOSE_FILE=路径）"
+        die "数据库备份已生成，但没找到 docker-compose.yml；本份备份不含密钥、不能独立恢复。请设 COMPOSE_FILE=路径后重跑，或显式用 INCLUDE_CONFIG=0 降级备份"
     elif cp -f "$cf" "$BACKUP_DIR/teslamate-compose-SECRET.yml" 2>/dev/null; then
         chmod 600 "$BACKUP_DIR/teslamate-compose-SECRET.yml" 2>/dev/null || true
         log "✅ 已快照配置（含密钥）：$BACKUP_DIR/teslamate-compose-SECRET.yml —— 这份备份可独立恢复"
         log "⚠ 含密钥！备份目录务必私密，别公开分享（发论坛求助前删掉它）。不想包含：INCLUDE_CONFIG=0"
     else
-        log "⚠ 配置快照复制失败（不影响数据库备份）。恢复时请另备 ENCRYPTION_KEY"
+        die "数据库备份已生成，但配置快照复制失败；本份备份不能独立恢复。请检查目录权限后重跑，或显式用 INCLUDE_CONFIG=0 降级备份"
     fi
 fi
 
 # ---- 5. 保留清理：仅本轮成功后执行，按时间保留最近 $KEEP 份 ----
-# 文件名为受控零填充时间戳（teslamate-YYYYmmdd_HHMM.dump），字典序即时间序，
+# 文件名为受控零填充时间戳（teslamate-YYYYmmdd_HHMMSS.dump），字典序即时间序，
 # 避免用 ls 解析（刚创建 $FINAL，数组至少含 1 个元素）。
 shopt -s nullglob
 all_backups=("$BACKUP_DIR"/teslamate-*.dump)

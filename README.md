@@ -5,8 +5,8 @@
 **和官方原版的差异**：
 
 - 🌏 **国内可用** — 9 个地图面板支持高德/谷歌切换，自动 GCJ-02 坐标纠偏（轨迹精准贴道路）
-- ⚡ **分时电价系统** — 配峰平谷电价 + 充电桩性价比榜 + 重算历史充电（v1.5.0+）
-- 📊 **12 个原创分析仪表盘** — 年度报告 / 省钱分析 / 充电健康 / 停车掉电 / 出行规律 / 动能回收 / 驾驶评分 / 多车对比等
+- ⚡ **分时电价系统** — 为收藏点（Geofence，数据库中称地理围栏）配置峰平谷电价 + 充电桩性价比榜 + 重算历史充电（v1.5.0+）
+- 📊 **13 个原创分析仪表盘** — 年度驾驶报告 / 省钱分析 / 充电健康管理 / ⚡ 行车 vs 停车耗电（月度）/ 出行规律分析 / 动能回收分析 / 驾驶评分 / 胎压 / 多车对比等
 - 🆕 **2 个上游精选移植**（v1.7.0）— 回本分析（电车比油车几年回本）/ 速度温度热力图
 - 🇨🇳 **本地化优化** — Docker Hub 镜像直拉无墙、PostgreSQL 与 Grafana 版本跟齐官方
 - ✅ **开箱即用** — `bash simple-deploy.sh` 5 分钟装好，自动检测云主机并加固安全
@@ -19,130 +19,66 @@
 
 | 🚀 新用户 | 🇨🇳 国内用户 | ⬆️ 老用户升级 |
 |---|---|---|
-| 第一次装 TeslaMate？跳到 [**快速开始**](#quick-start)，5 分钟跑起来。<br><br>或者看 [**新手向导 QUICKSTART**](QUICKSTART.md)，从「什么是 TeslaMate」一步步带你装。 | **第一次装前必看** → [**中国大陆专项配置**](#cn-region)（镜像源 / NOMINATIM_PROXY / 安全组）。<br><br>装完踩坑 → [TROUBLESHOOTING](TROUBLESHOOTING.md)。 | 已经在用，想升新版？查 [**升级到 v1.6.x**](#upgrade-v16)（按你怎么装的选 A/B/C/D 一种）。 |
+| 第一次装 TeslaMate？从 [**安装场景选择器**](#quick-start) 进入对应的 QUICKSTART 权威步骤。 | **第一次装前必看** → [**中国大陆专项配置**](#cn-region)（镜像源 / NOMINATIM_PROXY / 安全组）。<br><br>装完踩坑 → [故障排查手册](TROUBLESHOOTING.md)。 | 已经在用，想升新版？查 [**升级到最新版**](#upgrade-latest)，按原安装方式选一条最小命令。 |
 
 ---
 
+<a id="upgrade-latest"></a>
 <a id="upgrade-v16"></a>
 
-<details>
-<summary><b>⚡ 升级到 v1.6.x — 分时电价 + 性能索引（中文版独有）　点开看 4 种升级方法 ▼</b></summary>
+## ⚡ 升级到最新版
 
-<br>
+升级前先按 [数据库备份与恢复](TROUBLESHOOTING.md#数据库备份与恢复) 做一份完整备份。然后只按原安装方式执行一条路径；不要把 A、B、C 混着跑。
 
-> **v1.5.0 起的中文版独有功能**：
-> - 🆕 「⚡ 分时电价配置」仪表盘 — 在线配置峰平谷电价 + 配置审计 + 24 小时电价分布
-> - 🆕 「🏆 充电桩性价比榜」仪表盘 — 按 ¥/度 排序所有充电点
-> - 🌡️ 「天气-能耗关联」仪表盘（v1.6.0）— 国内 #1 痛点「冬天到底掉多少电」量化版
-> - 🚀 positions 表性能索引（v1.6.1）— 电池健康/行程列表/能耗聚合等查询从 200ms 降到 < 5ms
-> - 🔧 9 个仪表盘 60+ 处 SQL 自动适配分时电价
-> - **没装分时电价的用户无任何感知差异**（所有面板回退到原 `cp.cost`）
->
-> 按你当时怎么装的，选一种：
->
-> | 你之前怎么装的？ | 用哪个 |
-> |---|---|
-> | **没装过**（全新用户） | 跳到下方 [快速开始](#quick-start) |
-> | **官方源**（grafana 是 `teslamate/grafana`） | [方法 D](#upgrade-method-d) |
-> | 跟 jheredianet 教程装的（手动 import dashboard JSON） | [方法 D](#upgrade-method-d) — 但**先 export 你改过的 dashboard JSON 备份**，迁移会用我们这一套替换 |
-> | 用了我们的 `simple-deploy.sh` | [方法 A](#upgrade-method-a) |
-> | `git clone` 了我们仓库 | [方法 B](#upgrade-method-b) |
-> | 自己写 docker-compose 套了我们镜像 | [方法 C](#upgrade-method-c) |
->
-> <a id="upgrade-method-a"></a>
->
-> ### 方法 A — 一键脚本用户（之前用 `simple-deploy.sh` 装的）
->
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/simple-deploy.sh | bash
-> ```
->
-> 脚本自动检测现有安装 → 切升级模式（拉新镜像 + 装新 SQL 函数 + 重启 Grafana）。**不会重置 ENCRYPTION_KEY 或配置**。
->
-> <a id="upgrade-method-b"></a>
->
-> ### 方法 B — git clone 用户（之前 `git clone` 仓库装的）
->
-> ```bash
-> cd teslamate-chinese-dashboards
-> bash scripts/upgrade.sh
-> ```
->
-> 自动 7 步：git pull → 检测 PG → 装地图函数 → 装分时电价 → 装性能索引（v1.6.1+）→ 检查 Grafana 插件 → 重启 Grafana。**重复跑不会丢数据**。
->
-> <a id="upgrade-method-c"></a>
->
-> ### 方法 C — 手动派（自己写 docker compose 套了我们镜像的）
->
-> ```bash
-> # 1. 拉新镜像（带 volkovlabs-form-panel 插件 + 45 个仪表盘 — 该插件给「⚡ 分时电价配置」面板提供按钮交互）
-> docker compose pull && docker compose up -d
->
-> # 2. 装 SQL 安装文件（坐标函数 + 单位换算 + 分时电价 + 性能索引，远程 curl 不用 git clone）
->
-> # 默认用 main（跟 :latest 镜像同步）。担心仓库被劫持的话把 main 替换成具体 tag（如 v1.6.2）锁版本：
-> REF=main   # 或 v1.6.2
->
-> # 自动找 database 容器名（你的项目目录不叫 teslamate 时容器名会不同，直接 ps 拿）
-> DB=$(docker compose ps -q database)
-> [ -z "$DB" ] && { echo "❌ database 容器没起来，先跑 docker compose up -d 再来"; exit 1; }
->
-> for f in install-coord-functions install-unit-functions install-tou install-indexes; do
->   curl -fsSL "https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/${REF}/sql/${f}.sql" \
->     | docker exec -i "$DB" psql -U teslamate -d teslamate
-> done
->
-> # 3. 重启 Grafana
-> docker compose restart grafana
-> ```
->
-> Watchtower 自动升镜像的用户每次升级后**只需要重跑这一段**就能拿到最新 SQL 改动（函数 / 索引 / TOU）。脚本是 `IF NOT EXISTS / CREATE OR REPLACE`，重跑零风险。详见 [SQL 远程拉取的安全注意](#sql-trust-model)。
->
-> <a id="upgrade-method-d"></a>
->
-> ### 方法 D — 从官方源迁移（你以前是 `teslamate/grafana`）
->
-> ```bash
-> curl -fsSLO https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/migrate-from-official.sh
-> bash migrate-from-official.sh
-> ```
->
-> 脚本预检 docker daemon + compose CLI（v1/v2 都识别）→ 找 `docker-compose.yml`（含 v2 新 `compose.yml`）→ 备份（mode 600，含 ENCRYPTION_KEY）→ 改 grafana 镜像 → 拉新镜像 → 探测 database 容器名 → 装 SQL。**TeslaMate / Postgres / MQTT 完全不动，ENCRYPTION_KEY 和数据 0 丢失**。脚本结尾会打印一行 `cp + $DC up -d` 的回滚命令，复制粘贴即可回去。
->
-> ⚠️ 在 Grafana 里手动改过 dashboard 的，先到「仪表盘 → ⋮ → Export」备份 JSON，迁移完再 Import 回来 —— 我们的镜像会用我们这一套覆盖。
->
-> ### 配分时电价（可选，约 3 分钟）
->
-> ```bash
-> bash scripts/tou-wizard.sh                 # 5 步交互式向导（git clone 用户）
-> ```
->
-> 或直接打开「**⚡ 分时电价配置**」仪表盘 →「**🌆 一键导入城市模板**」选你城市，配完点「**🔄 重算所有历史充电**」按钮把历史按分时电价重算。
->
-> ### 升级前必读：先备份
->
-> 任何升级（含 v1.6.x → v1.6.x、PG 大版本升级）前都强烈建议先做完整数据库备份：
-> ```bash
-> docker compose exec -T database pg_dump -U teslamate teslamate > backup_$(date +%Y%m%d).sql
-> ```
-> 详见 [TeslaMate 官方 backup_restore](https://docs.teslamate.org/docs/maintenance/backup_restore) + [我们的 TROUBLESHOOTING「整机迁移」](TROUBLESHOOTING.md)。
->
-> 想**定期自动备份**？一键安装（`simple-deploy.sh`）装时/升级时会让你三选一：**含密钥（推荐，能独立恢复）/ 不含密钥 / 否**，通用 Linux 自动写好 crontab、群晖给 DSM 步骤。脚本是 `scripts/backup.sh`（导出失败自动中止、绝不删除已有备份、自动保留最近 N 份），默认连含密钥的配置一起备份让备份能独立恢复（不必手抄 `ENCRYPTION_KEY`；备份目录请保持私密）。手动设置见 [TROUBLESHOOTING.md「定期自动备份数据库」](TROUBLESHOOTING.md#db-backup)。
->
-> ### 升级出问题？完全可逆
->
-> TeslaMate 任何表都没动，分时电价数据全在我们新建的旁路表。详见 [TROUBLESHOOTING.md「v1.5.0 分时电价升级排错 / 回滚」](TROUBLESHOOTING.md#tou-rollback) | [Telegram 交流群](https://t.me/+BeOASgmvE_IyNzNl)
->
-> ### v1.6.6+ 升级提示
->
-> v1.6.6 修复了备份恢复跟 TeslaMate 官方流程不对齐的真 bug（缺 `DROP SCHEMA private` + `CREATE EXTENSION cube`）。**如果你做过整机迁移且遇到 token 解密失败被迫重新授权过**——那就是这个 bug，新版恢复流程不会再触发。详见 [v1.6.6 发版说明](https://github.com/wjsall/teslamate-chinese-dashboards/releases/tag/v1.6.6)。
->
+<a id="upgrade-method-a"></a>
 
-</details>
+### 方法 A — 一键脚本用户
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/simple-deploy.sh | bash
+```
+
+脚本会识别现有安装并进入升级模式：拉取镜像、更新四组 SQL 对象、检查 `volkovlabs-form-panel` 插件并重启 Grafana；不会重置 `ENCRYPTION_KEY` 或其他配置。安装或升级时的自动备份选项（含密钥 / 不含密钥 / 不启用，含群晖 DSM 设置）见 [定期自动备份数据库](TROUBLESHOOTING.md#db-backup)。
+
+<a id="upgrade-method-b"></a>
+
+### 方法 B — git clone 用户
+
+```bash
+cd teslamate-chinese-dashboards
+bash scripts/upgrade.sh
+```
+
+脚本依次执行 `git pull`、PostgreSQL 检测、四组 SQL 对象更新、Grafana 插件检查和 Grafana 重启；可重复执行，不会清空数据。
+
+<a id="upgrade-method-c"></a>
+
+### 方法 C — 自写 Compose / Watchtower 用户
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+这条命令只更新镜像。新版本涉及 SQL 时，再执行唯一的 [四个 SQL 安装文件修复循环](TROUBLESHOOTING.md#repair-sql-install)；它会自动探测 database 容器，任一文件失败即停止，完成后重启 Grafana。Watchtower 也只换镜像，因此同样要补这一步。纯仪表盘版本（例如 v1.7.10）只需更新镜像。远程 SQL 的版本锁定与信任边界见 [SQL 远程拉取的信任模型](#sql-trust-model)。
+
+<a id="upgrade-method-d"></a>
+
+### 方法 D — 从官方 TeslaMate 迁移
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/migrate-from-official.sh
+bash migrate-from-official.sh
+```
+
+[`migrate-from-official.sh`](migrate-from-official.sh) 是唯一正常迁移入口。它会预检 Docker daemon 与 Compose CLI（v1/v2），查找 `docker-compose.yml` / `compose.yml`，以 mode 600 备份含 `ENCRYPTION_KEY` 的配置，再更换 Grafana 镜像、探测 database 容器并安装四组 SQL 对象；TeslaMate、PostgreSQL、MQTT 和车辆数据不动。脚本末尾会给出 `cp + $DC up -d` 回滚命令。
+
+如果曾手动修改仪表盘，迁移前先在 Grafana 中进入「仪表盘 → ⋮ → Export」导出 JSON；迁移会加载本项目版本。脚本无法运行时才使用 [手动迁移兜底](TROUBLESHOOTING.md#manual-migration-fallback)。
+
+分时电价是可选功能，升级完成后按 [QUICKSTART 的分时电价配置](QUICKSTART.md#tou-config) 操作。它包含城市模板、交互式向导、历史回算和回滚入口；未配置时，费用面板继续使用原 `cp.cost`。升级故障和完全回滚见 [分时电价升级排错 / 回滚](TROUBLESHOOTING.md#tou-rollback)。v1.6.6 修复过旧版恢复流程缺 `DROP SCHEMA private` 与 `CREATE EXTENSION cube` 导致 Token 解密失败的问题，背景和当前正确流程见 [数据库备份与恢复](TROUBLESHOOTING.md#数据库备份与恢复)。
 
 ---
 
-> 🚗 基于 [TeslaMate](https://github.com/teslamate-org/teslamate) 项目的 Grafana Dashboard 汉化版本
+> 🚗 基于 [TeslaMate](https://github.com/teslamate-org/teslamate) 项目的 Grafana 仪表盘汉化版本
 >
 > 📖 原版文档: https://docs.teslamate.org
 >
@@ -164,10 +100,10 @@
 
 ### ⚡ v1.5.0 重磅功能：分时电价系统 + 充电桩性价比榜
 
-**「⚡ 分时电价配置」** — 24 小时电价柱图自动配色（绿=谷 / 黄=平 / 橙=峰）+ 配置审计 + 5 步交互式向导
+**「⚡ 分时电价配置」** — 24 小时电价柱图自动配色（绿=谷 / 黄=平 / 橙=峰）+ 配置审计 + 写操作提交前二次确认；「全局默认」用于没有收藏点或缺少位置的充电记录
 ![分时电价配置](screenshots/tou-config.png)
 
-**「🏆 充电桩性价比榜」** — 按 ¥/度 排序所有充电点（家充走分时电价、第三方走原价）+ 30 天涨/降价对比 + 充电桩地图
+**「🏆 充电桩性价比榜」** — 按 ¥/度 排序充电点（家充走分时电价、第三方走原价）+ 30 天涨/降价对比 + 充电桩地图；按收藏点聚合，同名地点不会再被错误合并
 ![充电桩性价比榜](screenshots/station-ranking.png)
 
 ### 🌏 v1.4.2 重磅功能：地图源一键切换 + 自动 GCJ-02 坐标纠偏
@@ -178,17 +114,17 @@
 
 ### 🆕 原创分析仪表盘
 
-**年度驾驶报告** — 年度里程 / 充电 / 能耗 / 常去地点 TOP10
+**年度驾驶报告** — 年份动态生成并跟随所选年份，汇总里程 / 充电 / 能耗 / 常去地点 TOP10，排除未完成记录
 ![年度驾驶报告](screenshots/annual-summary.png)
 
-**省钱分析** — 与燃油车对比节省金额、充电时段分布、预算进度
+**省钱分析** — 用「行驶能耗 × 同期平均电价」的能量匹配口径估算用电成本并与燃油车对比；缺少电价数据时显示 `No data`
 ![省钱分析](screenshots/cost-savings.png)
 
-**充电健康管理** — 充电习惯评分、SOC 分布、充电次数趋势
+**充电健康管理** — 充电习惯评分、SOC 分布、充电次数趋势；仅统计已完成且充电量 ≥1 kWh 的有效充电
 ![充电健康管理](screenshots/charging-health.png)
 
-**停车掉电分析** — 掉电趋势、区间分布、最耗电停车 TOP20
-![停车掉电分析](screenshots/sentry-drain.png)
+**「⚡ 行车 vs 停车耗电（月度）」** — 统计每月行车电耗与停车耗电，并拆分醒着 / 休眠停车；停车口径不能等同于哨兵模式耗电
+![⚡ 行车 vs 停车耗电（月度）](screenshots/sentry-drain.png)
 
 **出行规律分析** — 时段分布、工作日 vs 周末、温度与能耗关系
 ![出行规律分析](screenshots/driving-patterns.png)
@@ -213,17 +149,17 @@
 |------|-----------|
 | ![概览](screenshots/overview.png) | ![电池健康度](screenshots/battery-health.png) |
 
-| 里程统计 | 充电记录 |
+| 车辆里程统计 | 充电记录 |
 |---------|---------|
-| ![里程统计](screenshots/mileage-stats.png) | ![充电记录](screenshots/charges.png) |
+| ![车辆里程统计](screenshots/mileage-stats.png) | ![充电记录](screenshots/charges.png) |
 
-| 电池容量曲线 | 行程追踪地图 |
+| 电池容量曲线图 | 驾驶记录追踪 |
 |------------|------------|
-| ![电池容量曲线](screenshots/charge-level.png) | ![行程追踪](screenshots/tracking.png) |
+| ![电池容量曲线图](screenshots/charge-level.png) | ![驾驶记录追踪](screenshots/tracking.png) |
 
-| 时间线 | 电池容量曲线（全量） |
+| 时间线 | 电池容量曲线图（第二张预览） |
 |--------|-----------------|
-| ![时间线](screenshots/timeline.png) | ![电池容量曲线2](screenshots/charge-level-2.png) |
+| ![时间线](screenshots/timeline.png) | ![电池容量曲线图第二张预览](screenshots/charge-level-2.png) |
 
 ---
 
@@ -232,7 +168,7 @@
 - ✅ **开箱即用** - 无需 Docker Hub 账号，直接挂载使用
 - ✅ **一键安装** - 提供多种安装方式，5分钟完成部署
 - ✅ **持续更新** - 通过 git pull 即可获取最新汉化
-- ✅ **深度汉化** - 45 个 Dashboard，含12 个全新原创分析图表
+- ✅ **深度汉化** - 45 个仪表盘，含 13 个全新原创分析图表
 - 🌏 **地图源一键切换（独有）** - 9 个含地图仪表盘顶部加 OSM / 高德 / 高德卫星 / 谷歌 / 谷歌卫星 / Carto 下拉框，秒切，自动 GCJ-02 坐标纠偏（v1.4.2+）
   - 国内用户告别手动改 SQL，海外华人用户也能用谷歌中文路网
 - ✅ **完整适配 TeslaMate 4.0** - 同步官方全部新特性，已在 **TeslaMate v4.0.1 + Grafana 13.0.1** 实测兼容
@@ -241,30 +177,30 @@
 
 | 指标 | 数值 |
 | --- | --- |
-| Dashboard 数量 | 45 个 ✅ |
+| 仪表盘数量 | 45 个 ✅ |
 | 内部详情页 | 3个（行程/充电详情）|
 | 文件总大小 | ~1.2MB |
 | 汉化完成度 | 99%+ |
 | 质量等级 | A+ |
-| 最后更新 | 2026-06-16 |
+| 最后更新 | 2026-07 |
 
-**45 个 Dashboard 深度汉化，持续优化中，开箱即用！** 🎉
+**45 个仪表盘深度汉化，持续优化中，开箱即用！** 🎉
 
 ## 📚 使用文档
 
-我们为你准备了三份详细的使用指南：
+我们为你准备了五份详细的使用指南：
 
 | 文档 | 说明 | 适合人群 |
 |------|------|----------|
 | **[新手向导](QUICKSTART.md)** | 从零开始安装，含 FAQ | 完全新手 |
-| **[功能地图](DASHBOARD_MAP.md)** | 45 个 Dashboard 分类导航 | 新用户 |
-| **[场景速查手册](SCENE_GUIDE.md)** | 什么时候看什么 Dashboard | 所有用户 |
+| **[功能地图](DASHBOARD_MAP.md)** | 45 个仪表盘分类导航 | 新用户 |
+| **[场景速查手册](SCENE_GUIDE.md)** | 什么时候看什么仪表盘 | 所有用户 |
 | **[数据指标手册](METRICS_GUIDE.md)** | 指标解释、正常范围、异常处理 | 进阶用户 |
 | **[故障排查手册](TROUBLESHOOTING.md)** | 遇到问题按症状查解决方案 | 遇到问题时 |
 
 **新手建议**：先看「新手向导」→「功能地图」→「场景速查手册」→「数据指标手册」
 
-## 📁 包含的 Dashboard
+## 📁 包含的仪表盘
 
 **45 个仪表盘** 按主题分布在电池 / 充电 / 驾驶 / 位置 / 车辆状态 / 原创分析 / 系统信息 等分类下。完整功能列表 + 字段映射 → [DASHBOARD_MAP.md](DASHBOARD_MAP.md)
 
@@ -272,147 +208,21 @@
 
 ## 🚀 快速开始
 
-按你的场景三选一：
+安装流程只在 QUICKSTART 维护，README 不再复制命令。按你的实际场景进入对应锚点：
 
-| 你的情况 | 用方法 |
-|---|---|
-| **从零开始装**（没装过 TeslaMate） | 方法一 |
-| **已经在用原版英文 TeslaMate**（想换中文） | 方法二 |
-| **想自己写 docker-compose.yml + 挂仪表盘** | 方法三 |
+| 你的情况 | 唯一入口 | 入口里保留的信息 |
+|---|---|---|
+| **从零开始，想最快装好** | [QUICKSTART：一键脚本](QUICKSTART.md#one-click-install) | 机器准备、Docker、安装、密钥备份、登录和验收清单 |
+| **从零开始，自己写 Compose** | [QUICKSTART：手动 Docker Compose](QUICKSTART.md#manual-compose) | 完整 Compose、密码与 `ENCRYPTION_KEY`、启动和 SQL 安装入口 |
+| **已有官方英文 TeslaMate，换中文版** | [迁移方法 D](#upgrade-method-d) / [`migrate-from-official.sh`](migrate-from-official.sh) | 预检、配置备份、换镜像、SQL 安装与回滚 |
+| **已有自定义 Grafana，只挂载本项目 JSON** | [QUICKSTART：手动挂载仪表盘](QUICKSTART.md#manual-dashboard-mount) | Grafana 版本要求、两条挂载路径、中文环境变量与 SQL 安装入口 |
+| **已经装过，只想升级** | [升级到最新版](#upgrade-latest) | 按原安装方式选择最小命令 |
 
-### 方法一：一键脚本（推荐 ⭐）
-
-**适合谁**：第一次装 TeslaMate 的用户、想最快看到自己车数据的人。
-
-**装完你看到什么**：
-- TeslaMate `http://你的IP:4000` — 粘贴 Tesla token 后开始记录数据
-- Grafana `http://你的IP:3000` — 45 个中文仪表盘开箱可用（行驶 / 充电 / 电池 / 多车 / 年度报告等）
-- 终端打印 3 个密码（Grafana / 数据库 / 加密 key），抄到密码管理器
-
-**前提**：
-- 一台一直开机的机器（家用 NAS / 云 VPS 1GB+ / 自己电脑都行）
-- 终端：Linux / macOS 自带；Windows 用 WSL2 或 Git Bash
-- Docker 没装也行 — 脚本检测不到会自动装（Linux 主流发行版）
-- Tesla 账号 + 手机装好 [Auth for Tesla App](https://github.com/adriankumpf/tesla_auth/releases)（装完拿 token 用）
-
-**跑**：
-```bash
-curl -fsSLO https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/simple-deploy.sh
-bash simple-deploy.sh
-```
-
-**装完做什么**：
-1. 浏览器开 `http://你的IP:4000` 粘贴 Tesla access_token + refresh_token 绑车
-2. 等几分钟数据同步（首次拉历史数据稍慢）
-3. 浏览器开 `http://你的IP:3000`，左侧导航看「TeslaMate」分类下所有仪表盘
-4. 国内用户在「足迹地图」/「驾驶记录追踪」顶部下拉切「高德地图」，轨迹会精准贴道路
-
-**遇到问题**：先看 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)，常见装完起不来的原因（端口冲突 / Docker 起不来 / Tesla token 拒绝）都在那里。
-
-### 方法二：替换已有原版 TeslaMate 的 Grafana 镜像
-
-适合**已经在用原版英文 TeslaMate** 想换中文版的用户。改两处 + 清旧卷：
-
-```yaml
-# 原 docker-compose.yml 的 grafana service 改两处：
-  grafana:
-    image: bswlhbhmt816/teslamate-chinese-dashboards:latest   # ← 改镜像（原 teslamate/grafana:latest）
-    environment:
-      - DATABASE_USER=teslamate
-      - DATABASE_PASS=password
-      - DATABASE_NAME=teslamate
-      - DATABASE_HOST=database
-      - GF_USERS_DEFAULT_LANGUAGE=zh-Hans                      # ← 加这一行
-    # ports / volumes / restart 保持原样
-```
-
-> ⚠️ **必须清除旧 Grafana 数据卷**（不影响行车记录数据，那存在独立的 `teslamate-db` 卷）：
-
-```bash
-docker compose stop grafana
-docker volume rm teslamate_teslamate-grafana-data
-docker compose pull grafana
-docker compose up -d grafana
-```
-
-### 方法三：手动挂载 Dashboard 文件（进阶）
-
-适合需要**完全控制 docker-compose.yml** 的用户（自定义部署 / 老版 Grafana 升级路径）。
-
-> ⚠️ **版本要求**：部分仪表板用 `schemaVersion 41`，需要 **Grafana 12+**（TeslaMate Grafana 镜像 3.0.0+）。
-
-```yaml
-services:
-  grafana:
-    image: teslamate/grafana:latest
-    volumes:
-      - ./teslamate-chinese-dashboards/grafana/dashboards/zh-cn:/dashboards:ro
-      - ./teslamate-chinese-dashboards/grafana/dashboards/internal:/dashboards_internal:ro
-    environment:
-      - GF_USERS_DEFAULT_LANGUAGE=zh-Hans
-```
-
-```bash
-git clone https://github.com/wjsall/teslamate-chinese-dashboards.git
-docker compose restart grafana
-```
-
-> ⚠️ `internal/` 必须挂载到 `/dashboards_internal/`（带下划线），否则行程详情/充电详情仍显示英文。
-
-### 🇨🇳 中国大陆用户：镜像拉取失败
-
-`ghcr.io` 在大陆经常超时。本项目镜像**双源同步**：
-
-- ✅ Docker Hub：`bswlhbhmt816/teslamate-chinese-dashboards:latest`（国内更稳）
-- ⚠️ ghcr.io：`ghcr.io/wjsall/teslamate-chinese-dashboards:latest`（备用）
-
-**默认就用 Docker Hub**（方法一脚本已默认选 Docker Hub，方法二/三里手动指定）。
-
-如果 Docker Hub 也慢，配镜像代理：
-
-```bash
-sudo tee /etc/docker/daemon.json <<'EOF'
-{
-  "registry-mirrors": [
-    "https://docker.1ms.run",
-    "https://docker.m.daocloud.io",
-    "https://docker.cnb.cool"
-  ]
-}
-EOF
-sudo systemctl restart docker
-```
-
-## 🔄 更新方法
-
-### 使用镜像方式
-重新拉取镜像即可更新 Grafana 和仪表盘：
-```bash
-docker compose pull grafana
-docker compose up -d grafana
-```
-
-> ⚠️ 以上**只更新 Grafana 镜像和仪表盘**。若某版改动了 SQL（坐标函数 / 单位换算 / 分时电价 / 索引），还要重装 SQL 安装文件，否则分时电价 / 地图 / 单位换算等面板会报错 —— 一键安装用户直接重跑 `simple-deploy.sh`（自动进升级模式装 SQL），其他用户见上方 [升级方法 A/B/C/D](#upgrade-v16)。纯仪表盘版本（如 v1.7.10）用上面两条命令即可。
->
-> 🔎 **典型报错**：地图整页 / 分时电价 / 单位换算面板报 `function lat_for_map(...) does not exist`、`function effective_cost(...) does not exist`、`function convert_km(...) does not exist` 之类 —— **这是没装/没重装 SQL 安装文件，不是 PostgreSQL 版本问题，别去升级 PG**。重跑上面的 SQL 安装即可（坐标函数在 `install-coord-functions.sql`、单位换算在 `install-unit-functions.sql`、分时电价在 `install-tou.sql`）。
-
-> ⚠️ **如果更新后 Dashboard 仍显示旧版本**，说明 Grafana 数据卷有缓存残留，执行以下命令重置（车辆数据不受影响）：
-> ```bash
-> docker compose stop grafana
-> docker volume rm teslamate_teslamate-grafana-data
-> docker compose up -d grafana
-> ```
-
-### 使用挂载方式
-```bash
-cd teslamate-chinese-dashboards
-git pull
-docker compose restart grafana
-```
+中国大陆镜像拉取失败时，直接走 [故障排查中的镜像修复](TROUBLESHOOTING.md#image-pull-cn)；不要在多份安装文档间复制镜像源配置。
 
 ## 🔧 故障排除
 
-完整故障排查手册 → [TROUBLESHOOTING.md](TROUBLESHOOTING.md)（覆盖部署 / Dashboard 显示 / 数据 / Tesla 授权 / 升级 / 中国大陆专项 等所有常见问题）
+完整故障排查手册 → [TROUBLESHOOTING.md](TROUBLESHOOTING.md)（覆盖部署 / 仪表盘显示 / 数据 / Tesla 授权 / 升级 / 中国大陆专项等常见问题）
 
 ## 📦 镜像信息
 
@@ -429,6 +239,8 @@ docker compose restart grafana
 ## 🇨🇳 中国大陆用户专项配置
 
 **TeslaMate 3.0 起，国内账号通常什么都不用改**。登录方式是粘贴 Access Token / Refresh Token（推荐用 [tesla_auth 桌面版](https://github.com/adriankumpf/tesla_auth/releases) 拿，TeslaMate 主作者维护，跨平台），TeslaMate 会从 token 自动识别中国区，所有 API/streaming 请求自动走 `*.cloud.tesla.cn`。详见 [QUICKSTART.md 第四步](QUICKSTART.md#step-4)。
+
+镜像拉取慢或失败时，直接按 [中国大陆镜像修复](TROUBLESHOOTING.md#image-pull-cn) 选择 Docker Hub、镜像代理、网络代理或离线导入；可复制配置只在该修复锚点维护。
 
 **⚠️ 国内用户高频踩坑：行程列表地址列空**
 
@@ -498,9 +310,9 @@ REPO_REF=v1.6.2 bash migrate-from-official.sh
 
 - Docker 20.10+
 - Docker Compose 2.0+
-- **PostgreSQL 18**（与官方 teslamate-org 对齐，`postgres:18-trixie`）
-  - 12 个仪表盘用 3-arg `date_trunc` 时区聚合，**PG ≤15 必报错**
-  - PG 16/17 能跑但建议升 18；从老 TeslaMate 迁过来要先升 PG，[备份升级流程见 TROUBLESHOOTING.md「PostgreSQL 大版本升级」](TROUBLESHOOTING.md#postgresql-大版本升级如-17--18)
+- **PostgreSQL 技术最低 16，官方推荐 18**（官方默认 `postgres:18-trixie`）
+  - 13 个仪表盘用三参数 `date_trunc` 时区聚合，PG 16 起支持，**PG ≤15 必报错**
+  - PG 16/17 可运行全部仪表盘；新装或安排大版本维护时建议用 PG 18。升级前先看 [TROUBLESHOOTING.md「PostgreSQL 大版本升级」](TROUBLESHOOTING.md#postgresql-upgrade)
 - 内存: 2GB+
 - 磁盘: 10GB+
 
@@ -515,7 +327,7 @@ REPO_REF=v1.6.2 bash migrate-from-official.sh
 ### 原版项目
 - **GitHub**: https://github.com/teslamate-org/teslamate
 - **官方文档**: https://docs.teslamate.org
-- **原版 Grafana Dashboards**: https://github.com/teslamate-org/teslamate/tree/master/grafana/dashboards
+- **原版 Grafana 仪表盘**: https://github.com/teslamate-org/teslamate/tree/master/grafana/dashboards
 
 ### 帮助文档
 - **安装指南**: https://docs.teslamate.org/docs/installation/docker
@@ -554,7 +366,7 @@ REPO_REF=v1.6.2 bash migrate-from-official.sh
 ### 如何贡献
 
 1. **Fork 本项目**
-2. **修改 Dashboard JSON 文件**
+2. **修改仪表盘 JSON 文件**
    - 文件位置: `grafana/dashboards/zh-cn/`
 3. **提交 PR**
    - 说明修改内容和原因
@@ -576,7 +388,7 @@ MIT License - 与 TeslaMate 项目相同
 - **整理优化**: Claude AI
 - **验证测试**: 自动化脚本
 - **原始项目**: [TeslaMate](https://github.com/teslamate-org/teslamate)
-- **英文 Dashboard 参考**: [@jheredianet](https://github.com/jheredianet) — [Teslamate-CustomGrafanaDashboards](https://github.com/jheredianet/Teslamate-CustomGrafanaDashboards)，部分面板实现逻辑参考自其原版设计
+- **英文仪表盘参考**: [@jheredianet](https://github.com/jheredianet) — [Teslamate-CustomGrafanaDashboards](https://github.com/jheredianet/Teslamate-CustomGrafanaDashboards)，部分面板实现逻辑参考自其原版设计
 
 ## 💬 问题反馈
 

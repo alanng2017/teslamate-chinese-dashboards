@@ -14,7 +14,7 @@
 2. 把里面 ✂️ 之间的整段 prompt 复制到任意主流 AI
 3. 在 prompt 末尾贴上你的错误日志和问题，提交
 
-AI 拿到的是完整项目背景（架构、SQL 三件套、常见坑、调试命令），诊断比通用 AI 准得多。**注意核对 AI 给的命令再执行，不要盲跑 chown / DROP / --user root 等改动型命令。**
+AI 拿到的是完整项目背景（架构、SQL 四件套、常见坑、调试命令），诊断比通用 AI 准得多。**注意核对 AI 给的命令再执行，不要盲跑 chown / DROP / --user root 等改动型命令。**
 
 **AI 没解决** → 再来 [GitHub issues](https://github.com/wjsall/teslamate-chinese-dashboards/issues) 报告，附上 AI 的诊断结论让维护者跳过重复排查。
 
@@ -100,6 +100,8 @@ ports:
 
 ---
 
+<a id="image-pull-cn"></a>
+
 ### ❌ 镜像拉取失败（国内网络）
 
 **症状**：
@@ -168,33 +170,84 @@ newgrp docker
 
 ---
 
-## 📊 Dashboard 问题
+## 📊 仪表盘问题
+
+<a id="repair-sql-install"></a>
 
 ### ❌ 地图 / 分时电价面板报 `function lat_for_map(...) does not exist`（更新镜像后高频）
 
 **症状**：地图整页或某些面板报错 `db query error: ERROR: function lat_for_map(unknown, numeric, numeric) does not exist`（或 `lng_for_map` / `effective_cost` / `compute_tou_cost` 等）。
 
-**根因**：这些是本项目的**自定义 SQL 函数**（坐标转换、分时电价计费），不在 Grafana 镜像里，要单独装进数据库。报这个错 = **没装、或更新镜像后没重装 SQL 三件套**。⚠️ **跟 PostgreSQL 版本无关，别去升级 PG**（升 PG 是另一个错：`function date_trunc(text, timestamp with time zone, text) does not exist`，两者不要混）。
+**根因**：这些是本项目的**自定义 SQL 函数**（坐标转换、分时电价计费），不在 Grafana 镜像里，要单独装进数据库。报这个错 = **没装、或更新镜像后没重装 SQL 四件套**。⚠️ **跟 PostgreSQL 版本无关，别去升级 PG**（升 PG 是另一个错：`function date_trunc(text, timestamp with time zone, text) does not exist`，两者不要混）。
 
-**修复**——重装 SQL 三件套（坐标函数在 `install-coord-functions.sql`、分时电价在 `install-tou.sql`）：
+**修复**——重装 SQL 四件套（坐标函数 / 单位换算 / 分时电价 / 性能索引）：
 
 ```bash
 # 容器名不是 teslamate-database-1 时先 docker compose ps -q database 查实际名
 DB=$(docker compose ps -q database)
-for f in install-coord-functions install-tou install-indexes; do
-  curl -fsSL "https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/sql/${f}.sql" \
-    | docker exec -i "$DB" psql -U teslamate -d teslamate
+[ -n "$DB" ] || { echo "❌ database 容器没起来"; exit 1; }
+# 默认跟 :latest 镜像同步；需要锁版本时先 export SQL_REF=v1.6.2
+REF=${SQL_REF:-main}
+set -o pipefail
+for f in install-coord-functions install-unit-functions install-tou install-indexes; do
+  if ! curl -fsSL "https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/${REF}/sql/${f}.sql" \
+    | docker exec -i "$DB" psql -U teslamate -d teslamate; then
+    echo "❌ ${f}.sql 安装失败"
+    exit 1
+  fi
 done
 docker compose restart grafana
 ```
 
-脚本是 `CREATE OR REPLACE`，重跑零风险；一键安装用户直接重跑 `simple-deploy.sh` 会自动装。装完刷新即恢复。
+脚本使用 `CREATE OR REPLACE` / `IF NOT EXISTS`，可安全重跑；一键安装用户直接重跑 `simple-deploy.sh` 也会自动安装。默认 `REF=main` 与 `:latest` 同步；需要锁版本时先执行 `export SQL_REF=v1.6.2`，安全取舍见 [README 的信任模型](README.md#sql-trust-model)。装完刷新即恢复。
 
-### ❌ 从官方 TeslaMate 迁移后「分时电价配置」整页报 panel not found（v1.7.0 / v1.7.1 迁移用户）
+### ❌ 单位换算面板报 `function convert_km(...) does not exist`
 
-**症状**：跑完 `migrate-from-official.sh` 后，打开「⚡ 分时电价配置」整个 dashboard 显示 `panel not found`，仪表盘列表里能搜到、Grafana 日志全是 INFO 无 ERROR。**v1.7.2+ 的 migrate 脚本已经自动修，这一节给已经踩坑的用户自助修复。**
+**症状**：里程、温度、海拔或胎压面板报 `convert_km` / `convert_celsius` / `convert_m` / `convert_tire_pressure does not exist`。
 
-**根因**：「分时电价配置」里 5 个 panel 用 `volkovlabs-form-panel` 第三方插件。我们镜像 build 时把它装在 `/var/lib/grafana/plugins`，但这条路径**正好是 Grafana volume `teslamate-grafana-data` 的挂载点**。从官方迁移来的用户，他们的 volume 来自官方 grafana 镜像（没装 volkov），切镜像时 volume 覆盖镜像的 plugin 目录 → 镜像里装好的插件用不上。
+**根因**：这四个函数来自 `sql/install-unit-functions.sql`，报错说明单位换算 SQL 没有安装，或更新镜像后没有重装。这也不是 PostgreSQL 版本问题。
+
+**修复**：执行上一节的 SQL 四件套循环，不要只单独更新 Grafana 镜像。
+
+<a id="manual-migration-fallback"></a>
+
+### ❌ 无法运行迁移脚本，需要手动切换官方 Grafana 镜像
+
+正常迁移请回到 README 的 [方法 D](README.md#upgrade-method-d)，由 `migrate-from-official.sh` 统一完成预检、备份、换镜像、SQL 安装和回滚。只有脚本预检无法通过、且你已经备份配置与仪表盘 JSON 时，才用下面的旧式手动兜底。
+
+先把原 `docker-compose.yml` 的 `grafana` service 改两处；`ports`、`volumes` 和 `restart` 保持原样：
+
+```yaml
+grafana:
+  image: bswlhbhmt816/teslamate-chinese-dashboards:latest   # 原 teslamate/grafana:latest
+  environment:
+    - DATABASE_USER=teslamate
+    - DATABASE_PASS=password
+    - DATABASE_NAME=teslamate
+    - DATABASE_HOST=database
+    - GF_USERS_DEFAULT_LANGUAGE=zh-Hans
+```
+
+如果需要让 Grafana 从干净数据卷重新载入本项目仪表盘，可执行：
+
+```bash
+docker compose stop grafana
+docker volume rm teslamate_teslamate-grafana-data
+docker compose pull grafana
+docker compose up -d grafana
+```
+
+> ⚠️ 这不会删除独立 `teslamate-db` 卷中的车辆数据，但会删除 Grafana 数据卷里的用户、书签和自定义设置。项目名不是 `teslamate` 时卷名会不同，先用 `docker volume ls` 确认；不要照抄删除不认识的卷。
+
+最后执行本页上一节的 [四个 SQL 安装文件修复循环](#repair-sql-install)。它会安装坐标转换、单位换算、分时电价和性能索引，任一文件失败即停止。
+
+<a id="form-panel-migration-repair"></a>
+
+### ❌ 从官方 TeslaMate 迁移后「⚡ 分时电价配置」整页报 panel not found（v1.7.0 / v1.7.1 迁移用户）
+
+**症状**：跑完 `migrate-from-official.sh` 后，打开「⚡ 分时电价配置」时整个仪表盘显示 `panel not found`，仪表盘列表里能搜到、Grafana 日志全是 INFO 无 ERROR。**v1.7.2+ 的 migrate 脚本已经自动修，这一节给已经踩坑的用户自助修复。**
+
+**根因**：「⚡ 分时电价配置」里 5 个 panel 用 `volkovlabs-form-panel` 第三方插件。我们镜像 build 时把它装在 `/var/lib/grafana/plugins`，但这条路径**正好是 Grafana volume `teslamate-grafana-data` 的挂载点**。从官方迁移来的用户，他们的 volume 来自官方 grafana 镜像（没装 volkov），切镜像时 volume 覆盖镜像的 plugin 目录 → 镜像里装好的插件用不上。
 
 > 下面命令里的 `teslamate-grafana-1` 是默认容器名。如果你用 `-p someproject` 起的，容器名会变成 `someproject-grafana-1`——按 `docker ps | grep grafana` 实际结果替换。
 
@@ -225,7 +278,7 @@ docker compose restart grafana
 
 > `--user root` 仅本次 docker exec 内有效，命令退出后 grafana 进程恢复 grafana user，不是持久权限提升。
 
-等 30 秒后 Ctrl+F5 刷新「分时电价配置」，5 个 form panel 应该全部恢复。
+等 30 秒后 Ctrl+F5 刷新「⚡ 分时电价配置」，5 个 form panel 应该全部恢复。
 
 **或者**重跑迁移脚本（v1.7.2+ 的 migrate-from-official.sh 会自动检测 + 装这插件，国内超时时也会打印两条路径的命令让你选）：
 
@@ -244,9 +297,9 @@ docker exec teslamate-grafana-1 ls /var/lib/grafana/plugins
 
 ---
 
-### ❌ 自定义 / 上传 Dashboard JSON 后 Grafana 看不到（群晖 NAS 用户高发）
+### ❌ 自定义 / 上传仪表盘 JSON 后 Grafana 看不到（群晖 NAS 用户高发）
 
-**症状**：把改过的 dashboard JSON 通过 File Station / scp 推到 `/volume1/docker/teslamate/dashboards/zh-cn/`，重启 grafana 也不生效，仪表盘还是旧版。
+**症状**：把改过的仪表盘 JSON 通过 File Station / scp 推到 `/volume1/docker/teslamate/dashboards/zh-cn/`，重启 grafana 也不生效，仪表盘还是旧版。
 
 **根因**：DSM File Station / scp 上传的文件属主是你本地用户（`wjsall:admin` 之类），但 Grafana 容器跑的是 uid `472`，**读不了你的文件**（DSM 隐藏 ACL 让 grafana 看上去 permission denied 但 自动加载静默跳过）。
 
@@ -282,7 +335,7 @@ docker exec --user root teslamate-grafana-1 chown -R 472:472 /dashboards /dashbo
 
 ---
 
-### ❌ Dashboard 显示空白 / 无数据
+### ❌ 仪表盘显示空白 / 无数据
 
 **Step 1：确认 TeslaMate 有数据**
 ```bash
@@ -307,9 +360,9 @@ docker compose restart grafana
 
 ---
 
-### ❌ Dashboard 显示英文而非中文
+### ❌ 仪表盘显示英文而非中文
 
-**症状**：打开 Grafana 界面全是英文，或者 Dashboard 面板标题是英文
+**症状**：打开 Grafana 界面全是英文，或者仪表盘面板标题是英文
 
 **解决 1：确认语言环境变量**
 查看 `docker-compose.yml` 中 grafana 服务是否有：
@@ -321,7 +374,9 @@ environment:
 **解决 2：确认使用的是中文镜像**
 ```bash
 docker compose ps grafana
-# 应该显示 ghcr.io/wjsall/teslamate-chinese-dashboards:latest
+# 应该显示以下任一合法镜像：
+# bswlhbhmt816/teslamate-chinese-dashboards:latest
+# ghcr.io/wjsall/teslamate-chinese-dashboards:latest
 ```
 
 **解决 3：清除浏览器缓存**
@@ -556,7 +611,7 @@ docker compose logs mosquitto
 - TeslaMate 服务在行程中重启
 
 **查看不完整数据：**
-打开 Grafana → **「不完整的数据」** Dashboard，可以看到哪些行程/充电缺少了数据。
+打开 Grafana → **「不完整的数据」**仪表盘，可以看到哪些行程 / 充电缺少了数据。
 
 **手动导入历史数据（如有 TeslaFi / Tesla API 备份）：**
 将数据放入 `./import/` 目录，TeslaMate 会自动处理。
@@ -589,18 +644,13 @@ OpenStreetMap 地图服务在国内可能受限。
 
 高德 / 谷歌中国区域路网瓦片用 **GCJ-02（火星坐标系）**，TeslaMate 记录的是 **WGS-84（GPS 原始）**。两者在中国境内偏差 100~700 米。
 
-**解决：装一次 v1.4.2+ 的坐标转换函数（一行命令）：**
-
-```bash
-docker exec -i teslamate-database-1 psql -U teslamate teslamate \
-  < sql/install-coord-functions.sql
-```
+**解决：**执行本页 [四个 SQL 安装文件修复循环](#repair-sql-install)，其中包含 v1.4.2+ 的坐标转换函数，并会一并补齐单位换算、分时电价和性能索引。
 
 执行后会显示「坐标转换函数安装成功 (天安门测试通过): (39.91522, 116.40407)」自检通过提示。装完刷新仪表盘（Ctrl+Shift+R），轨迹会自动贴合道路。
 
 > 不在意精度的话，切回 OSM / Carto / 谷歌卫星即可（都是 WGS-84，无偏差）。
 
-### ❌ Dashboard 顶部「地图源」下拉框看不到
+### ❌ 仪表盘顶部「地图源」下拉框看不到
 
 **症状**：升级到 v1.4.2 后，仪表盘顶部下拉框区域空白或只看到旧变量
 
@@ -672,7 +722,7 @@ docker compose restart teslamate
 ### 🇨🇳 行程列表地址列空 / 地图地名乱 — Nominatim 国内反查超时（中国大陆用户高频问题）
 
 **症状**：
-- 「行程列表」仪表盘起始地址 / 结束地址列大量空，只有"收藏点"地址有显示
+- 「行程列表」仪表盘起始地址 / 结束地址列大量空，只有收藏点（Geofence，数据库中称地理围栏）地址有显示
 - `SELECT COUNT(*) FROM addresses` 数量远小于 `drives` 数量
 
 **根因**：TeslaMate 用 OpenStreetMap Nominatim（`nominatim.openstreetmap.org`）做反向地理编码，**国内访问常超时**。反查失败的 drive 的 `start_address_id` / `end_address_id` 永远 NULL，地址列就空了。
@@ -819,7 +869,7 @@ sudo firewall-cmd --reload
 
 **步骤 2：准备 docker-compose.yml**
 
-DSM File Station 进入 `/volume1/docker/`，新建子文件夹 `teslamate`。**右键 → 新建文件 → 命名 `docker-compose.yml`**，内容粘贴下方完整模板（**记得替换两个红色占位符**）：
+DSM File Station 进入 `/volume1/docker/`，新建子文件夹 `teslamate`，并在其中再新建一个子文件夹 `import`（下方模板挂载了 `./import:/opt/app/import`，DSM **不会自动创建**这个目录，不建会在启动时报 `Bind mount failed: ... import does not exist`）。回到 `teslamate` 文件夹，**右键 → 新建文件 → 命名 `docker-compose.yml`**，内容粘贴下方完整模板（**记得替换两个红色占位符**）：
 
 ```yaml
 services:
@@ -891,7 +941,7 @@ volumes:
 **步骤 3：在 Container Manager 里建项目**
 
 1. Container Manager → **项目 → 新增**
-2. **项目名称**：`teslamate-chinese`（随意，别和已有项目重名）
+2. **项目名称**：`teslamate-chinese`（建议保持此值；若改名，下面终端命令里的 `COMPOSE_PROJECT_NAME` 也要同步改）
 3. **路径**：选刚刚放 docker-compose.yml 的文件夹（如 `/docker/teslamate`）
 4. **来源**：选「使用现有的 docker-compose.yml」
 5. 点「下一步」→ Container Manager 自动解析 compose，列出 4 个服务（teslamate / database / grafana / mosquitto）
@@ -900,6 +950,19 @@ volumes:
 **步骤 4：等容器拉取启动**
 
 进度条到 100% 后，浏览器访问 `http://NAS-IP:4000` 进 TeslaMate。
+
+**步骤 5：安装 SQL 四件套（坐标转换 / 单位换算 / 分时电价 / 性能索引）**
+
+Container Manager 只是起了原始官方 TeslaMate + 我们的 Grafana 镜像，Grafana 镜像本身不会自动把函数装进 PostgreSQL——地图、单位换算、分时电价这几类面板要先装函数才能用。用步骤 2 装的「Text Editor / 终端机」套件开个普通终端，先执行：
+
+```bash
+cd /volume1/docker/teslamate
+export COMPOSE_PROJECT_NAME=teslamate-chinese
+```
+
+> 如果项目实际放在其他存储卷或目录，请把第一行换成真实路径；如果步骤 3 使用了其他项目名称，请同步修改第二行。
+
+然后执行本页 [四个 SQL 安装文件修复循环](#repair-sql-install)（从当前项目探测 database 容器，任一文件失败即退出）。
 
 **升级时：** Container Manager → 项目 → 选 `teslamate-chinese` → **操作 → 重新构建** 即可重新拉镜像（实际等价于 `docker compose pull && docker compose up -d`）。
 
@@ -1004,38 +1067,15 @@ volumes:
 
 ## 🔄 升级问题
 
-### 如何升级到新版本
+### 正常升级入口
 
-按你之前的安装方式选一条：
+正常升级命令只在 [README → 升级到最新版](README.md#upgrade-latest) 维护，按一键脚本、git clone、自写 Compose / Watchtower 或官方版迁移选择一条。这里仅保留升级失败后的修复方法。
 
-#### A. 一键脚本用户（之前用 simple-deploy.sh 装的）
-
-直接重跑一键脚本，**它会自动检测现有安装并转升级模式**：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/simple-deploy.sh | bash
-```
-
-会做：拉新镜像 → 重启容器 → 装/更新坐标转换函数 → 重启 Grafana。**不会改你的 ENCRYPTION_KEY 或其他配置。**
-
-#### B. git clone 用户
-
-```bash
-cd ~/teslamate-chinese     # 你的克隆目录
-bash scripts/upgrade.sh
-```
-
-#### C. 仅更新镜像（旧用法，不含 v1.4.2 坐标函数）
-
-⚠️ **如果你从 v1.4.1 或更早版本升级到 v1.4.2+，单跑这条会让 9 个含地图的仪表盘报错** `function lat_for_map does not exist`。请用上面 A 或 B。
-
-```bash
-cd ~/teslamate-chinese  # 进入安装目录
-docker compose pull
-docker compose up -d
-```
+如果你只执行过 `docker compose pull` / `docker compose up -d` 或由 Watchtower 自动换过镜像，新版本涉及 SQL 时可能报 `lat_for_map`、`convert_km`、`effective_cost` 等自定义函数不存在。这不是 PostgreSQL 版本问题，执行本页唯一的 [四个 SQL 安装文件修复循环](#repair-sql-install) 即可。
 
 ---
+
+<a id="postgresql-upgrade"></a>
 
 ### PostgreSQL 大版本升级（如 17 → 18）
 
@@ -1092,7 +1132,7 @@ docker compose up -d
 
 #### 仪表盘报 `function effective_cost(...) does not exist`
 
-`install-tou.sql` 没装上。**按你的安装方式重跑升级即可**，详见 [README 方法 B](README.md#upgrade-method-b)（git clone 用户）或 [README 方法 C](README.md#upgrade-method-c)（手动派）。
+`install-tou.sql` 没装上。执行本页唯一的 [四个 SQL 安装文件修复循环](#repair-sql-install)，不要只补一个文件；正常升级入口见 [README](README.md#upgrade-latest)。
 
 #### 「⚡ 分时电价配置」仪表盘空白 / 不显示表单
 
@@ -1179,7 +1219,7 @@ python3 scripts/wrap-cost-with-tou-view.py --revert
 
 ---
 
-### ❌ 升级后数据丢失 / Dashboard 错乱
+### ❌ 升级后数据丢失 / 仪表盘错乱
 
 **不要慌，数据通常在数据库里没问题。**
 
@@ -1188,7 +1228,7 @@ python3 scripts/wrap-cost-with-tou-view.py --revert
 docker compose exec database psql -U teslamate -c "SELECT COUNT(*) FROM drives;"
 ```
 
-Dashboard 错乱通常是 Grafana 缓存问题：
+仪表盘错乱通常是 Grafana 缓存问题：
 ```bash
 docker compose restart grafana
 # 然后清除浏览器缓存：Ctrl+Shift+R
@@ -1199,6 +1239,8 @@ docker compose restart grafana
 ### 数据库备份与恢复
 
 > ℹ️ 流程跟 [TeslaMate 官方 backup_restore](https://docs.teslamate.org/docs/maintenance/backup_restore) 对齐。**恢复前必须先 `DROP SCHEMA public + private CASCADE` + `CREATE EXTENSION cube + earthdistance`**，不然 Tesla token 解密会失败（被迫重新授权），且新机器上 `pg_restore` 报 `type "cube" does not exist`。详细数据迁移流程见上节「整机迁移」。
+>
+> v1.6.6 修复的正是旧恢复流程漏掉 `DROP SCHEMA private` 与 `CREATE EXTENSION cube` 的问题。如果你过去整机迁移后遇到 Token 解密失败、被迫重新授权，通常就是这个原因；当前流程已包含修复。背景见 [v1.6.6 发版说明](https://github.com/wjsall/teslamate-chinese-dashboards/releases/tag/v1.6.6)。
 
 **备份**（plain SQL 格式，简单 + 跨版本兼容）：
 ```bash
@@ -1245,7 +1287,7 @@ docker compose start teslamate
 |---|---|
 | 1. **`docker-compose.yml`**（含 `ENCRYPTION_KEY` + 数据库密码）| Tesla token 永远解密不出来，必须重新授权 |
 | 2. **PostgreSQL 数据库备份**（`drives` / `charges` / `positions` / `cars` 全部历史）| 行车记录全丢 |
-| 3. **Grafana 数据卷**（自定义书签 / 用户 / 配置）| 你改过的 dashboard 设置丢，45 个仪表盘会自动重新加载 |
+| 3. **Grafana 数据卷**（自定义书签 / 用户 / 配置）| 你改过的仪表盘设置丢，45 个仪表盘会自动重新加载 |
 
 **备份步骤（旧机器上跑）**：
 

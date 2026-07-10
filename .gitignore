@@ -4,3 +4,6 @@ CLAUDE.md
 docs/agents/
 __pycache__/
 *.pyc
+.docs-audit.md
+.cold-review.md
+.cold-review-2.md

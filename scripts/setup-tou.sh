@@ -3,7 +3,7 @@
 #
 # 用法:
 #   bash scripts/setup-tou.sh install                       # 装函数+表（如未装）
-#   bash scripts/setup-tou.sh import <city> <geofence_name> # 导入城市模板
+#   bash scripts/setup-tou.sh import <city> <geofence_name|--global> # 导入城市模板
 #   bash scripts/setup-tou.sh list                          # 列出当前 分时电价配置
 #   bash scripts/setup-tou.sh test [<charge_id>]            # 试算单笔（不传 ID 用最近一笔家充）
 #   bash scripts/setup-tou.sh reset                         # 清空所有 分时电价配置
@@ -32,7 +32,7 @@ SQL_DIR="$SCRIPT_DIR/../sql"
 
 # 城市模板列表从 PG 函数 list_city_templates() 动态查（单一数据源在 install-tou.sql）
 # 数据库未装时 fallback 到硬编码列表（与 install-tou.sql 的 apply_city_template CASE 分支同步）
-CITIES_FALLBACK=(beijing shanghai shenzhen guangzhou zhejiang jiangsu)
+CITIES_FALLBACK=(beijing shanghai shenzhen guangzhou zhejiang jiangsu wuhan)
 get_cities() {
     local list
     list=$(docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -t -A \
@@ -86,14 +86,14 @@ cmd_install() {
 }
 
 # ============================================================
-# 子命令: import <city> <geofence_name>
+# 子命令: import <city> <geofence_name|--global>
 # ============================================================
 cmd_import() {
     local city="$1"
     local geofence_name="$2"
 
     if [ -z "$city" ] || [ -z "$geofence_name" ]; then
-        echo -e "${RED}✗ 用法: bash $0 import <city> <geofence_name>${NC}"
+        echo -e "${RED}✗ 用法: bash $0 import <city> <geofence_name|--global>${NC}"
         echo ""
         echo "可用城市:"
         ensure_db_container 2>/dev/null || true
@@ -104,20 +104,26 @@ cmd_import() {
     ensure_db_container
 
     # 查 geofence_id + 调 apply_city_template（用 psql 变量代入避免 SQL 注入）
-    local geofence_id
-    geofence_id=$(docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -t -A \
-        -v gname="$geofence_name" \
-        -c "SELECT id FROM geofences WHERE name = :'gname'" | tr -d '[:space:]')
+    local geofence_id target_label
+    if [ "$geofence_name" = "--global" ]; then
+        geofence_id="NULL"
+        target_label="全局默认"
+    else
+        geofence_id=$(docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -t -A \
+            -v gname="$geofence_name" \
+            -c "SELECT id FROM geofences WHERE name = :'gname'" | tr -d '[:space:]')
 
-    if [ -z "$geofence_id" ]; then
-        echo -e "${RED}✗ 找不到地理围栏: $geofence_name${NC}"
-        echo ""
-        echo "你的地理围栏列表："
-        psql_exec -c "SELECT id, name FROM geofences ORDER BY name"
-        exit 1
+        if [ -z "$geofence_id" ]; then
+            echo -e "${RED}✗ 找不到地理围栏: $geofence_name${NC}"
+            echo ""
+            echo "你的地理围栏列表："
+            psql_exec -c "SELECT id, name FROM geofences ORDER BY name"
+            exit 1
+        fi
+        target_label="$geofence_name"
     fi
 
-    echo -e "${BLUE}导入 $city 模板到「$geofence_name」(geofence_id=$geofence_id)...${NC}"
+    echo -e "${BLUE}导入 $city 模板到「${target_label}」(geofence_id=$geofence_id)...${NC}"
     docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -t -A \
         -v cname="$city" \
         -c "SELECT apply_city_template(:'cname', $geofence_id)"
@@ -152,20 +158,43 @@ ORDER BY r.geofence_id NULLS FIRST, r.id'
 cmd_test() {
     ensure_db_container
     local charge_id="$1"
+    local query_output tou_cost
 
     if [ -z "$charge_id" ]; then
-        # 找最近一笔有 cost 的家充作 default
-        charge_id=$(psql_query_value "
-SELECT cp.id FROM charging_processes cp
-WHERE cp.geofence_id IN (SELECT DISTINCT geofence_id FROM tou_rates WHERE geofence_id IS NOT NULL)
-  AND cp.cost > 0
-ORDER BY cp.start_date DESC LIMIT 1" | tr -d '[:space:]')
+        # 只选 compute_tou_cost() 确实能算出结果的最近一笔充电，避免 AC 规则误选 DC 记录。
+        if ! query_output=$(psql_query_value "
+	SELECT cp.id FROM charging_processes cp
+WHERE cp.cost > 0
+  AND compute_tou_cost(cp.id) IS NOT NULL
+ORDER BY cp.start_date DESC LIMIT 1"); then
+            echo -e "${RED}✗ 查询可试算充电记录失败，请检查数据库连接和 SQL 函数${NC}"
+            return 1
+        fi
+        charge_id=$(printf '%s' "$query_output" | tr -d '[:space:]')
 
         if [ -z "$charge_id" ]; then
-            echo -e "${YELLOW}没找到匹配的充电记录。手动指定 ID: bash $0 test <id>${NC}"
-            exit 1
+            echo -e "${YELLOW}没找到可适用当前分时电价规则的历史充电记录。手动指定 ID: bash $0 test <id>${NC}"
+            return 2
         fi
-        echo -e "${BLUE}用最近一笔家充对账（id=$charge_id）...${NC}"
+        echo -e "${BLUE}用最近一笔适用的充电记录对账（id=${charge_id}）...${NC}"
+    fi
+
+    if ! [[ "$charge_id" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}✗ charge_id 必须是整数${NC}"
+        exit 1
+    fi
+
+    if ! tou_cost=$(psql_query_value "
+SELECT compute_tou_cost(cp.id)
+FROM charging_processes cp
+WHERE cp.id = $charge_id"); then
+        echo -e "${RED}✗ 试算查询失败，请检查数据库连接和 SQL 函数${NC}"
+        return 1
+    fi
+    tou_cost=$(printf '%s' "$tou_cost" | tr -d '[:space:]')
+    if [ -z "$tou_cost" ]; then
+        echo -e "${YELLOW}充电记录 $charge_id 不存在，或没有适用的分时电价规则${NC}"
+        return 2
     fi
 
     psql_exec -c "
@@ -212,7 +241,8 @@ TeslaMate 中文版分时电价配置工具
 
 用法:
   bash $0 install                        装函数+表（首次跑必须）
-  bash $0 import <city> <geofence_name>  导入城市模板
+  bash $0 import <city> <geofence_name>  导入城市模板到指定充电点
+  bash $0 import <city> --global         导入为全局默认（无收藏点/无位置充电）
   bash $0 list                           列出当前 分时电价配置
   bash $0 test [<charge_id>]             试算单笔（不传 ID 用最近一笔家充）
   bash $0 reset                          清空所有 分时电价配置

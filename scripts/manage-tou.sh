@@ -30,6 +30,18 @@ psql_exec() {
 }
 
 cmd_status() {
+    local installed
+    if ! installed=$(psql_exec -tAc "SELECT to_regclass('public.tou_rates') IS NOT NULL" 2>/dev/null); then
+        echo -e "${RED}✗ 无法查询分时电价安装状态，请先检查数据库连接${NC}"
+        return 1
+    fi
+    installed=$(printf '%s' "$installed" | tr -d '[:space:]')
+    if [ "$installed" != "t" ]; then
+        echo -e "${YELLOW}分时电价系统：未安装${NC}"
+        echo "  安装：bash scripts/setup-tou.sh install"
+        return 0
+    fi
+
     psql_exec -c "
 SELECT 'tou_rates 配置数' AS what, COUNT(*)::TEXT AS value FROM tou_rates
 UNION ALL SELECT 'charging_processes_tou_cost 旁路记录', COUNT(*)::TEXT FROM charging_processes_tou_cost

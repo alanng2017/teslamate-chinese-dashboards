@@ -6,6 +6,8 @@
 # 不开 set -e，单项失败不影响其他检查继续跑
 
 PROJECT="${COMPOSE_PROJECT_NAME:-teslamate}"
+TM_PORT="${TM_PORT:-4000}"
+GF_PORT="${GF_PORT:-3000}"
 PASS=0
 FAIL=0
 WARN=0
@@ -16,7 +18,7 @@ warn()  { printf "  ⚠ %s\n" "$1"; WARN=$((WARN+1)); }
 info()  { printf "  → %s\n" "$1"; }
 
 echo "================================================="
-echo "  TeslaMate 中文 Dashboard 诊断"
+echo "  TeslaMate 中文仪表盘诊断"
 echo "================================================="
 echo ""
 
@@ -52,14 +54,25 @@ else
 fi
 echo ""
 
+# Compose 优先探测 service，失败再兼容 v2 连字符 / v1 下划线容器名。
+detect_service_container() {
+    local svc="$1" c=""
+    c=$($DC ps -q "$svc" 2>/dev/null | head -1 || true)
+    if [ -z "$c" ]; then
+        c=$(docker ps --format '{{.Names}}' 2>/dev/null \
+            | grep -E "^${PROJECT}[-_]${svc}[-_][0-9]+$|^${svc}$" | head -1 || true)
+    fi
+    echo "$c"
+}
+
 # ---------------- 2. 容器状态 ----------------
 echo "2. 容器状态"
 EXPECTED=(teslamate database grafana mosquitto)
 ALL_RUNNING=1
 for svc in "${EXPECTED[@]}"; do
-    CID=$(docker ps --format '{{.Names}}' | grep -E "^${PROJECT}-${svc}-[0-9]+$" | head -1)
+    CID=$(detect_service_container "$svc")
     if [ -z "$CID" ]; then
-        fail "${svc} 容器未找到（期望名 ${PROJECT}-${svc}-1）"
+        fail "${svc} 容器未找到（Compose service: ${svc}；兼容 ${PROJECT}-${svc}-1 / ${PROJECT}_${svc}_1）"
         ALL_RUNNING=0
         continue
     fi
@@ -93,7 +106,7 @@ check_port_listen() {
     fi
 }
 
-for entry in "TeslaMate:4000" "Grafana:3000"; do
+for entry in "TeslaMate:${TM_PORT}" "Grafana:${GF_PORT}"; do
     name="${entry%:*}"
     port="${entry#*:}"
     check_port_listen "$port"
@@ -107,7 +120,7 @@ echo ""
 
 # ---------------- 4. 数据库 ----------------
 echo "4. 数据库"
-DB_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E "^${PROJECT}-database-[0-9]+$" | head -1)
+DB_CONTAINER=$(detect_service_container database)
 if [ -z "$DB_CONTAINER" ]; then
     fail "database 容器没起来，跳过数据库检查"
     echo ""
@@ -127,12 +140,26 @@ else
             info "已记录 $DRIVE_CNT 段行程，$(docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -tAc "SELECT count(*) FROM charging_processes" 2>/dev/null) 次充电"
         fi
 
-        # 坐标函数（v1.4.2+）
-        if docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -tAc "SELECT 1 FROM pg_proc WHERE proname='gcj02_to_wgs84'" 2>/dev/null | grep -q 1; then
+        # 坐标函数（v1.4.2+，共 5 个：is_outside_china 境内外判断 + wgs84_to_gcj02_lat/lng 算法 + lat_for_map/lng_for_map 包装）
+        if docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -tAc \
+            "SELECT count(DISTINCT proname) FROM pg_proc WHERE proname IN ('lat_for_map','lng_for_map','wgs84_to_gcj02_lat','wgs84_to_gcj02_lng','is_outside_china')" \
+            2>/dev/null | grep -qx 5; then
             ok "坐标转换函数已装（地图源切换/纠偏可用）"
         else
             warn "坐标函数未装（地图源切换会失败）"
-            echo "    修：bash <(curl -fsSL https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/scripts/upgrade.sh)"
+            echo "    修：已探测到数据库容器 ${DB_CONTAINER}；请按权威循环安装 SQL 四件套："
+            echo "    https://github.com/wjsall/teslamate-chinese-dashboards/blob/main/TROUBLESHOOTING.md#repair-sql-install"
+        fi
+
+        # 单位换算函数（v1.8.0+）
+        if docker exec "$DB_CONTAINER" psql -U teslamate -d teslamate -tAc \
+            "SELECT count(DISTINCT proname) FROM pg_proc WHERE proname IN ('convert_km','convert_celsius','convert_m','convert_tire_pressure')" \
+            2>/dev/null | grep -qx 4; then
+            ok "单位换算函数已装（里程/温度/海拔/胎压可用）"
+        else
+            warn "单位换算函数未完整安装（convert_km/convert_celsius/convert_m/convert_tire_pressure）"
+            echo "    修：已探测到数据库容器 ${DB_CONTAINER}；请按权威循环安装 SQL 四件套："
+            echo "    https://github.com/wjsall/teslamate-chinese-dashboards/blob/main/TROUBLESHOOTING.md#repair-sql-install"
         fi
 
         # TOU 表（v1.5.0+）
@@ -152,7 +179,7 @@ fi
 
 # ---------------- 5. Grafana ----------------
 echo "5. Grafana 仪表盘"
-GRAFANA_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E "^${PROJECT}-grafana-[0-9]+$" | head -1)
+GRAFANA_CONTAINER=$(detect_service_container grafana)
 if [ -z "$GRAFANA_CONTAINER" ]; then
     fail "grafana 容器没起来，跳过"
 else
@@ -162,7 +189,7 @@ else
     if [ -n "$LABEL_VER" ]; then
         ok "Grafana 镜像版本 label: $LABEL_VER ($IMAGE)"
     else
-        warn "Grafana 镜像 label 缺失（不是中文 Dashboard 镜像？）"
+        warn "Grafana 镜像 label 缺失（不是中文仪表盘镜像？）"
         info "实际镜像：$IMAGE"
     fi
 
@@ -173,7 +200,7 @@ else
     else
         warn "volkovlabs-form-panel 插件未装（TOU 仪表盘红三角）"
         echo "    修：docker exec --user root $GRAFANA_CONTAINER grafana cli --pluginsDir /var/lib/grafana/plugins plugins install volkovlabs-form-panel 6.3.2"
-        echo "        docker exec --user root $GRAFANA_CONTAINER chown -R 472:0 /var/lib/grafana/plugins"
+        echo "        docker exec --user root $GRAFANA_CONTAINER chown -R 472:472 /var/lib/grafana/plugins/volkovlabs-form-panel"
         echo "        docker restart $GRAFANA_CONTAINER"
     fi
 
@@ -191,7 +218,7 @@ echo ""
 
 # ---------------- 6. TeslaMate 后端 ----------------
 echo "6. TeslaMate 后端"
-TM_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E "^${PROJECT}-teslamate-[0-9]+$" | head -1)
+TM_CONTAINER=$(detect_service_container teslamate)
 if [ -z "$TM_CONTAINER" ]; then
     fail "teslamate 容器没起来"
 else
