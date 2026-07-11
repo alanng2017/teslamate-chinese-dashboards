@@ -29,8 +29,9 @@
 #   j 用户可见文本汉化完整性   — title/displayName/变量 label/description/row 标题须含 CJK，
 #                                或整串属于单位、术语、品牌、占位符、数字/符号白名单；
 #                                只验证“至少一个 CJK”，不判断中英混排文本是否已完整汉化。
-#   k 基线比较 override 孤儿   — table/stat 的 byName matcher 不在同面板顶层 SELECT AS 别名中；
-#                                存量由精确多重集基线豁免，新增或过期基线均阻断。
+#   k 最终字段契约 / 孤儿基线  — table/stat 的 byName matcher 经查询复用、变量别名与 transformations
+#                                推导后分为 PRESENT/ABSENT/DYNAMIC/UNKNOWN；只有 ABSENT 进入精确多重集
+#                                基线，新增或过期基线均阻断。
 #   l 自研函数存在性           — 形似项目自研的调用必须由 sql/install-*.sql 定义。
 #   m dashboard 跳转 UID       — panel link/dataLink 中 /d/<uid> 必须指向仓内 dashboard。
 #   n [报告档] timeseries 查询格式 — timeseries target 使用 format=table 时提示；被同面板
@@ -167,6 +168,7 @@ DASHBOARD_GLOBS = [
 SQL_INSTALL_GLOB = 'sql/install-*.sql'
 K_BASELINE_PATH = 'scripts/dashboard-lint-baseline.json'
 K_BASELINE_VERSION = 1
+K_STATES = ('PRESENT', 'ABSENT', 'DYNAMIC', 'UNKNOWN')
 REPORT_RULES = {'n', 'q', 'r'}
 
 # j 的“整串”通用白名单。这里只放跨 dashboard 稳定成立的类别；具体历史例外仍进入
@@ -630,75 +632,517 @@ def payload_cast_matches(tokens):
     return matches
 
 
-def top_level_select_fields(tokens):
-    """启发式提取顶层 SELECT 输出名；返回 (确定字段名, 是否含无法展开的 *)。"""
-    fields = set()
-    has_wildcard = False
-    depth = 0
-    index = 0
-    while index < len(tokens):
-        token = tokens[index]
+GRAFANA_VARIABLE_RE = re.compile(
+    r'\$(?:\{[A-Za-z_][A-Za-z0-9_]*(?::[^{}]+)?\}|[A-Za-z_][A-Za-z0-9_]*)'
+)
+RAW_SQL_VARIABLE_RE = re.compile(
+    r'^\s*\$\{[A-Za-z_][A-Za-z0-9_]*:raw\}\s*;?\s*$', re.I
+)
+
+
+class FieldContract:
+    """面板某一阶段的字段抽象；dynamic_patterns 中 None 表示任意运行时字段名。"""
+
+    def __init__(
+        self, fields=None, dynamic_patterns=None, dynamic_reasons=None, unknown_reasons=None,
+        variable_domains=None, pure_variable_reasons=None,
+    ):
+        self.fields = set(fields or ())
+        self.dynamic_patterns = set(dynamic_patterns or ())
+        self.dynamic_reasons = set(dynamic_reasons or ())
+        self.unknown_reasons = set(unknown_reasons or ())
+        self.variable_domains = dict(variable_domains or {})
+        self.pure_variable_reasons = set(pure_variable_reasons or ())
+
+    def copy(self):
+        return FieldContract(
+            self.fields, self.dynamic_patterns, self.dynamic_reasons, self.unknown_reasons,
+            self.variable_domains, self.pure_variable_reasons,
+        )
+
+    def merge(self, other):
+        self.fields.update(other.fields)
+        self.dynamic_patterns.update(other.dynamic_patterns)
+        self.dynamic_reasons.update(other.dynamic_reasons)
+        self.unknown_reasons.update(other.unknown_reasons)
+        self.variable_domains.update(other.variable_domains)
+        self.pure_variable_reasons.update(other.pure_variable_reasons)
+        return self
+
+
+def grafana_variable_name(token):
+    value = token[2:-1].split(':', 1)[0] if token.startswith('${') else token[1:]
+    return value
+
+
+def field_template_patterns(field, variable_domains=None):
+    """返回字段模板可能匹配的正则；纯变量不可枚举时以 None 表示。"""
+    matches = list(GRAFANA_VARIABLE_RE.finditer(field))
+    if not matches:
+        return None, False
+    variable_domains = variable_domains or {}
+    pure_variable = len(matches) == 1 and matches[0].span() == (0, len(field))
+    if pure_variable:
+        name = grafana_variable_name(matches[0].group(0))
+        options = variable_domains.get(name)
+        if options is None:
+            return {None}, True
+        return {'^' + re.escape(value) + '$' for value in options}, False
+
+    parts = []
+    cursor = 0
+    for match in matches:
+        parts.append(re.escape(field[cursor:match.start()]))
+        options = variable_domains.get(grafana_variable_name(match.group(0)))
+        if options is None:
+            parts.append(r'.+')
+        else:
+            parts.append('(?:' + '|'.join(re.escape(value) for value in options) + ')')
+        cursor = match.end()
+    parts.append(re.escape(field[cursor:]))
+    return {'^' + ''.join(parts) + '$'}, False
+
+
+def field_template_regex(field):
+    """兼容调用方：非纯变量模板返回单个形状正则。"""
+    patterns, _ = field_template_patterns(field)
+    if not patterns or None in patterns:
+        return None
+    return next(iter(patterns))
+
+
+def add_contract_field(contract, field, reason):
+    if not isinstance(field, str) or not field:
+        return
+    patterns, unbounded_pure_variable = field_template_patterns(
+        field, contract.variable_domains
+    )
+    if patterns is None:
+        contract.fields.add(field)
+    else:
+        contract.dynamic_patterns.update(patterns)
+        contract.dynamic_reasons.add(f"{reason}: {field}")
+        if unbounded_pure_variable:
+            warning = f"纯变量模板 {field!r} 不可枚举，任意 matcher 只能判为 DYNAMIC"
+            contract.pure_variable_reasons.add(warning)
+            contract.dynamic_reasons.add(warning)
+
+
+def dynamic_contract_matches(contract, matcher):
+    if None in contract.dynamic_patterns:
+        return True
+    return any(re.fullmatch(pattern, matcher) for pattern in contract.dynamic_patterns)
+
+
+def intersect_dynamic_patterns(patterns, filter_pattern):
+    """把 fullmatch 动态域与 Grafana/Python search 过滤器做正则交集。"""
+    intersected = set()
+    for pattern in patterns:
+        source_pattern = r'[\s\S]*' if pattern is None else pattern
+        intersected.add(
+            f'(?={source_pattern})(?=[\\s\\S]*(?:{filter_pattern}))[\\s\\S]*'
+        )
+    return intersected
+
+
+def trim_select_expression(expression):
+    result = list(expression)
+    while result and result[-1].value == ';':
+        result.pop()
+    return [token for token in result if identifier_value(token) not in {'distinct', 'all'}]
+
+
+IMPLICIT_ALIAS_FORBIDDEN = {
+    'all', 'and', 'asc', 'between', 'case', 'desc', 'distinct', 'else', 'end',
+    'false', 'filter', 'from', 'in', 'is', 'like', 'not', 'null', 'or', 'over',
+    'then', 'true', 'when', 'where', 'within',
+}
+IMPLICIT_ALIAS_OPERATORS = {
+    '.', '::', '+', '-', '*', '/', '%', '^', '=', '<', '>', '<=', '>=', '<>',
+    '!=', '||', '->', '->>', '#>', '#>>', '~', '!~', '~*', '!~*',
+}
+
+
+def select_expression_alias(expression):
+    """返回 (alias, 去别名表达式, alias_kind)，支持 AS 与 PostgreSQL 裸别名。"""
+    expr_depth = 0
+    for offset, current in enumerate(expression[:-1]):
+        if current.value == '(':
+            expr_depth += 1
+        elif current.value == ')':
+            expr_depth -= 1
+        elif expr_depth == 0 and identifier_value(current) == 'as':
+            alias_token = expression[offset + 1]
+            if alias_token.kind == 'quoted_identifier':
+                return alias_token.value, expression[:offset], 'AS'
+            if alias_token.kind == 'identifier':
+                return alias_token.value.lower(), expression[:offset], 'AS'
+
+    if len(expression) < 2:
+        return None, expression, None
+    alias_token = expression[-1]
+    alias_identifier = identifier_value(alias_token)
+    if alias_token.kind not in {'identifier', 'quoted_identifier'}:
+        return None, expression, None
+    if alias_identifier in IMPLICIT_ALIAS_FORBIDDEN:
+        return None, expression, None
+    if expression[-2].value in IMPLICIT_ALIAS_OPERATORS:
+        return None, expression, None
+    alias = alias_token.value if alias_token.kind == 'quoted_identifier' else alias_token.value.lower()
+    return alias, expression[:-1], 'implicit'
+
+
+def normalize_sql_expression(expression):
+    """忽略空白和未引号标识符大小写，保留字面量/引号身份。"""
+    normalized = []
+    for token in expression:
+        value = token.value.lower() if token.kind == 'identifier' else token.value
+        normalized.append(f"{token.kind}:{value}")
+    return ' '.join(normalized)
+
+
+def sql_field_contract(sql, target_ref='?', variable_domains=None):
+    """推导 PostgreSQL 查询最终 SELECT 的列名；无法封闭证明时保守降级。"""
+    contract = FieldContract(variable_domains=variable_domains)
+    if RAW_SQL_VARIABLE_RE.fullmatch(sql):
+        contract.dynamic_patterns.add(None)
+        contract.dynamic_reasons.add(f"target {target_ref} 的整段 SQL 来自 :raw 变量")
+        return contract
+
+    try:
+        tokens, _ = tokenize_sql(sql)
+    except Exception as error:
+        contract.unknown_reasons.add(f"target {target_ref} SQL 解析失败: {error}")
+        return contract
+
+    balance = 0
+    select_index = None
+    for index, token in enumerate(tokens):
         if token.value == '(':
-            depth += 1
-            index += 1
-            continue
-        if token.value == ')':
-            depth -= 1
-            index += 1
-            continue
-        if depth != 0 or identifier_value(token) != 'select':
-            index += 1
-            continue
-
-        select_depth = depth
-        end = index + 1
-        local_depth = select_depth
-        while end < len(tokens):
-            current = tokens[end]
-            if current.value == '(':
-                local_depth += 1
-            elif current.value == ')':
-                local_depth -= 1
-            elif local_depth == select_depth and identifier_value(current) == 'from':
+            balance += 1
+        elif token.value == ')':
+            balance -= 1
+            if balance < 0:
                 break
-            end += 1
+        elif balance == 0 and identifier_value(token) == 'select':
+            select_index = index
+            break
+    if balance < 0 or select_index is None:
+        contract.unknown_reasons.add(f"target {target_ref} SQL 无可解析的顶层 SELECT")
+        return contract
 
-        for expression in split_top_level_tokens(tokens[index + 1:end]):
-            expression = [token for token in expression if identifier_value(token) not in {'distinct', 'all'}]
-            expr_depth = 0
-            explicit_alias = None
-            for offset, current in enumerate(expression[:-1]):
-                if current.value == '(':
-                    expr_depth += 1
-                elif current.value == ')':
-                    expr_depth -= 1
-                elif expr_depth == 0 and identifier_value(current) == 'as':
-                    alias_token = expression[offset + 1]
-                    if alias_token.kind == 'quoted_identifier':
-                        explicit_alias = alias_token.value
-                    elif alias_token.kind == 'identifier':
-                        explicit_alias = alias_token.value.lower()
-            if explicit_alias is not None:
-                fields.add(explicit_alias)
-                continue
+    depth = 0
+    end = select_index + 1
+    while end < len(tokens):
+        current = tokens[end]
+        if current.value == '(':
+            depth += 1
+        elif current.value == ')':
+            depth -= 1
+        elif depth == 0 and identifier_value(current) == 'from':
+            break
+        end += 1
+    if depth != 0:
+        contract.unknown_reasons.add(f"target {target_ref} SQL 括号不平衡")
+        return contract
 
-            expr = strip_outer_parens(expression)
-            if expr and expr[-1].value == '*' and (
-                len(expr) == 1 or (len(expr) == 3 and expr[1].value == '.')
-            ):
-                has_wildcard = True
+    expressions = split_top_level_tokens(tokens[select_index + 1:end])
+    if not expressions:
+        contract.unknown_reasons.add(f"target {target_ref} SELECT 列表为空")
+        return contract
+
+    for raw_expression in expressions:
+        expression = trim_select_expression(raw_expression)
+        if not expression:
+            contract.unknown_reasons.add(f"target {target_ref} SELECT 含空表达式")
+            continue
+        alias, expression, alias_kind = select_expression_alias(expression)
+        if alias is not None:
+            add_contract_field(contract, alias, f"target {target_ref} {alias_kind} 别名")
+            continue
+
+        expr = strip_outer_parens(expression)
+        if expr and expr[-1].value == '*' and (
+            len(expr) == 1 or (len(expr) == 3 and expr[1].value == '.')
+        ):
+            contract.unknown_reasons.add(f"target {target_ref} SELECT * 依赖数据库 schema")
+            continue
+        if len(expr) == 1 and expr[0].kind in {'identifier', 'quoted_identifier'}:
+            value = expr[0].value if expr[0].kind == 'quoted_identifier' else expr[0].value.lower()
+            add_contract_field(contract, value, f"target {target_ref} 变量列名")
+            continue
+        if (
+            len(expr) == 3 and expr[1].value == '.'
+            and expr[0].kind in {'identifier', 'quoted_identifier'}
+            and expr[2].kind in {'identifier', 'quoted_identifier'}
+        ):
+            value = expr[2].value if expr[2].kind == 'quoted_identifier' else expr[2].value.lower()
+            add_contract_field(contract, value, f"target {target_ref} 变量列名")
+            continue
+        # PostgreSQL 对未起别名的函数/CASE 使用稳定的函数名/"case" 作为列名。
+        first = identifier_value(expr[0])
+        if first and (first == 'case' or (len(expr) > 1 and expr[1].value == '(')):
+            add_contract_field(contract, first, f"target {target_ref} 默认列名")
+            continue
+        # 其余未命名表达式由 PostgreSQL 报为 ?column?，名称本身仍是封闭的。
+        add_contract_field(contract, '?column?', f"target {target_ref} 默认表达式列名")
+
+    # 旧式 time_series 三列语义：metric 列的数据值会成为系列字段名。
+    return contract
+
+
+def target_field_contract(target, panel_index, panel_cache, stack, variable_domains=None):
+    ref_id = target.get('refId', '?')
+    raw_sql = target.get('rawSql')
+    if isinstance(raw_sql, str) and raw_sql.strip():
+        contract = sql_field_contract(raw_sql, ref_id, variable_domains)
+        result_format = target.get('format') or target.get('resultFormat')
+        if result_format == 'time_series' and any(name.lower() == 'metric' for name in contract.fields):
+            contract.dynamic_patterns.add(None)
+            contract.dynamic_reasons.add(
+                f"target {ref_id} 为 time_series，metric 数据值会成为系列字段名"
+            )
+        return contract
+
+    source_panel_id = target.get('panelId')
+    datasource = target.get('datasource') or {}
+    datasource_uid = datasource.get('uid') if isinstance(datasource, dict) else datasource
+    if source_panel_id is not None and datasource_uid == '-- Dashboard --':
+        source = panel_index.get(source_panel_id)
+        if source is None:
+            return FieldContract(unknown_reasons={f"dashboard datasource 引用不存在的 panel {source_panel_id}"})
+        return panel_field_contract(
+            source, panel_index, panel_cache, stack, variable_domains
+        ).copy()
+
+    return FieldContract(unknown_reasons={f"target {ref_id} 没有可静态解释的 rawSql"})
+
+
+def calc_operand_names(options):
+    binary = options.get('binary') or {}
+    names = []
+    for side in ('left', 'right'):
+        operand = binary.get(side)
+        if isinstance(operand, dict):
+            matcher = operand.get('matcher') or {}
+            if matcher.get('id') == 'byName' and isinstance(matcher.get('options'), str):
+                names.append(matcher['options'])
+        elif isinstance(operand, str) and not re.fullmatch(r'-?\d+(?:\.\d+)?', operand):
+            names.append(operand)
+    return names
+
+
+def transform_field_contract(contract, transformation):
+    result = contract.copy()
+    transform_id = transformation.get('id')
+    options = transformation.get('options') or {}
+
+    if transform_id in {'merge', 'seriesToColumns', 'joinByField', 'sortBy', 'convertFieldType', 'configFromData'}:
+        return result
+
+    if transform_id == 'organize':
+        excluded = {name for name, value in (options.get('excludeByName') or {}).items() if value is True}
+        included = {name for name, value in (options.get('includeByName') or {}).items() if value is True}
+        fields = result.fields - excluded
+        if included:
+            fields &= included
+        renames = options.get('renameByName') or {}
+        result.fields = {renames.get(name) or name for name in fields}
+        rewritten_patterns = set()
+        if included:
+            for name in included:
+                if name in excluded or not dynamic_contract_matches(contract, name):
+                    continue
+                renamed = renames.get(name) or name
+                rewritten_patterns.add('^' + re.escape(renamed) + '$')
+            result.dynamic_patterns = rewritten_patterns
+            return result
+        for pattern in result.dynamic_patterns:
+            if pattern is None:
+                rewritten_patterns.add(None)
                 continue
-            if len(expr) == 1 and expr[0].kind in {'identifier', 'quoted_identifier'}:
-                fields.add(expr[0].value if expr[0].kind == 'quoted_identifier' else expr[0].value.lower())
+            matched_keys = {name for name in set(excluded) | set(renames) | included if re.fullmatch(pattern, name)}
+            if not matched_keys:
+                rewritten_patterns.add(pattern)
                 continue
-            if (
-                len(expr) == 3 and expr[1].value == '.'
-                and expr[0].kind in {'identifier', 'quoted_identifier'}
-                and expr[2].kind in {'identifier', 'quoted_identifier'}
-            ):
-                fields.add(expr[2].value if expr[2].kind == 'quoted_identifier' else expr[2].value.lower())
-        index = end
-    return fields, has_wildcard
+            if not any(pattern == '^' + re.escape(name) + '$' for name in matched_keys):
+                rewritten_patterns.add(pattern)
+            for name in matched_keys:
+                if name in excluded or (included and name not in included):
+                    continue
+                renamed = renames.get(name) or name
+                rewritten_patterns.add('^' + re.escape(renamed) + '$')
+        result.dynamic_patterns = rewritten_patterns
+        # 对无法对应到显式字段名的动态来源继续保守保留；能对应的则同步 exclude/rename。
+        return result
+
+    if transform_id == 'filterFieldsByName':
+        include = options.get('include') or {}
+        names = include.get('names')
+        pattern = include.get('pattern')
+        if isinstance(names, list):
+            wanted = {name for name in names if isinstance(name, str)}
+            result.fields &= wanted
+            possible_dynamic = {
+                '^' + re.escape(name) + '$'
+                for name in wanted if dynamic_contract_matches(contract, name)
+            }
+            result.dynamic_patterns = possible_dynamic
+            return result
+        if isinstance(pattern, str):
+            try:
+                regex = re.compile(pattern)
+            except re.error as error:
+                result.unknown_reasons.add(f"filterFieldsByName 正则解析失败: {error}")
+                return result
+            result.fields = {name for name in result.fields if regex.search(name)}
+            result.dynamic_patterns = intersect_dynamic_patterns(
+                result.dynamic_patterns, pattern
+            )
+            return result
+        result.unknown_reasons.add("filterFieldsByName 缺少可解释的 include")
+        return result
+
+    if transform_id == 'calculateField':
+        alias = options.get('alias')
+        if not alias:
+            binary = options.get('binary') or {}
+            left = binary.get('left')
+            right = binary.get('right')
+            def operand_label(value):
+                if isinstance(value, dict):
+                    return ((value.get('matcher') or {}).get('options') or value.get('fixed'))
+                return value
+            left_label = operand_label(left)
+            right_label = operand_label(right)
+            if left_label is not None and right_label is not None:
+                alias = f"{left_label} {binary.get('operator', '?')} {right_label}"
+        operands = calc_operand_names(options)
+        missing = [name for name in operands if name not in result.fields]
+        if options.get('replaceFields') is True:
+            result.fields.clear()
+            result.dynamic_patterns.clear()
+        if isinstance(alias, str) and alias:
+            if not missing:
+                add_contract_field(result, alias, "calculateField 变量 alias")
+            elif any(dynamic_contract_matches(contract, name) for name in missing):
+                patterns, _ = field_template_patterns(alias, result.variable_domains)
+                result.dynamic_patterns.update(
+                    patterns or {'^' + re.escape(alias) + '$'}
+                )
+                result.dynamic_reasons.add(f"calculateField {alias!r} 的输入字段动态")
+            else:
+                result.unknown_reasons.add(
+                    f"calculateField {alias!r} 的输入字段无法确认: {', '.join(missing)}"
+                )
+        else:
+            result.unknown_reasons.add("calculateField 无法确定输出 alias")
+        return result
+
+    if transform_id == 'groupBy':
+        grouped = FieldContract(
+            dynamic_patterns=result.dynamic_patterns,
+            dynamic_reasons=result.dynamic_reasons,
+            unknown_reasons=result.unknown_reasons,
+            variable_domains=result.variable_domains,
+            pure_variable_reasons=result.pure_variable_reasons,
+        )
+        for name, config in (options.get('fields') or {}).items():
+            if name not in result.fields:
+                continue
+            if config.get('operation') == 'groupby':
+                grouped.fields.add(name)
+            elif config.get('operation') == 'aggregate':
+                for aggregation in config.get('aggregations') or ():
+                    grouped.fields.add(f"{name} ({aggregation})")
+        return grouped
+
+    if transform_id == 'groupingToMatrix':
+        matrix = FieldContract(
+            dynamic_patterns={None},
+            dynamic_reasons=result.dynamic_reasons | {
+                f"groupingToMatrix 的列名来自 {options.get('columnField')!r} 数据值"
+            },
+            unknown_reasons=result.unknown_reasons,
+            variable_domains=result.variable_domains,
+            pure_variable_reasons=result.pure_variable_reasons,
+        )
+        row_field = options.get('rowField')
+        if row_field in result.fields:
+            matrix.fields.add(row_field)
+        elif isinstance(row_field, str):
+            matrix.unknown_reasons.add(f"groupingToMatrix rowField {row_field!r} 无法确认")
+        return matrix
+
+    if transform_id == 'renameByRegex':
+        try:
+            regex = re.compile(options.get('regex', ''))
+            replacement = options.get('renamePattern', '')
+            # Grafana 使用 $1；Python 使用 \g<1>。
+            replacement = re.sub(r'\$(\d+)', r'\\g<\1>', replacement)
+            result.fields = {regex.sub(replacement, name) for name in result.fields}
+        except (re.error, TypeError) as error:
+            result.unknown_reasons.add(f"renameByRegex 解析失败: {error}")
+        return result
+
+    if transform_id == 'reduce':
+        return result
+
+    # regression 等现存但字段命名由插件版本决定的变换，不制造 ABSENT 假阳性。
+    result.unknown_reasons.add(f"transformation {transform_id!r} 的字段流无法封闭解释")
+    return result
+
+
+def panel_field_contract(panel, panel_index, panel_cache, stack=(), variable_domains=None):
+    panel_id = panel.get('id', '?')
+    if panel_id in panel_cache:
+        return panel_cache[panel_id]
+    if panel_id in stack:
+        return FieldContract(unknown_reasons={f"dashboard datasource panel 引用成环: {panel_id}"})
+
+    contract = FieldContract(variable_domains=variable_domains)
+    targets = [target for target in (panel.get('targets') or []) if isinstance(target, dict)]
+    if not targets:
+        contract.unknown_reasons.add(f"panel {panel_id} 没有 target")
+    for target in targets:
+        contract.merge(target_field_contract(
+            target, panel_index, panel_cache, stack + (panel_id,), variable_domains
+        ))
+    for transformation in panel.get('transformations') or []:
+        if isinstance(transformation, dict):
+            contract = transform_field_contract(contract, transformation)
+    panel_cache[panel_id] = contract
+    return contract
+
+
+def classify_contract_matcher(contract, matcher):
+    if matcher in contract.fields:
+        return 'PRESENT'
+    if dynamic_contract_matches(contract, matcher):
+        return 'DYNAMIC'
+    if contract.unknown_reasons:
+        return 'UNKNOWN'
+    return 'ABSENT'
+
+
+def dashboard_variable_domains(dashboard):
+    """只信任 Grafana 已静态列出的 custom/interval options；query 型不可枚举。"""
+    domains = {}
+    variables = ((dashboard.get('templating') or {}).get('list') or [])
+    for variable in variables:
+        if not isinstance(variable, dict) or variable.get('type') not in {'custom', 'interval'}:
+            continue
+        name = variable.get('name')
+        if not isinstance(name, str) or not name:
+            continue
+        values = []
+        for option in variable.get('options') or []:
+            value = option.get('value') if isinstance(option, dict) else option
+            if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+                values.append(str(value))
+        if values:
+            domains[name] = tuple(sorted(set(values)))
+    return domains
 
 
 def mod_or_date_part_matches(tokens):
@@ -1116,28 +1560,114 @@ def sql_snippet(sql, tokens, start, end):
     return sql[char_start:char_end].replace('\n', ' ')
 
 
+def run_k_self_test():
+    """不碰 dashboard 文件的四态与冷审失败路径故障注入。"""
+    present = sql_field_contract('SELECT 1 AS known', 'P')
+    absent = sql_field_contract('SELECT 1 AS known', 'A')
+    dynamic = target_field_contract(
+        {
+            'refId': 'D',
+            'format': 'time_series',
+            'rawSql': "SELECT now() AS time, 'driver' AS metric, 1 AS value",
+        },
+        {}, {}, (),
+    )
+    unknown = sql_field_contract('SELECT * FROM runtime_schema.table_name', 'U')
+    cases = [
+        ('PRESENT', classify_contract_matcher(present, 'known')),
+        ('ABSENT', classify_contract_matcher(absent, 'missing')),
+        ('DYNAMIC', classify_contract_matcher(dynamic, 'runtime_name')),
+        ('UNKNOWN', classify_contract_matcher(unknown, 'schema_field')),
+    ]
+    failures = [(expected, actual) for expected, actual in cases if expected != actual]
+    if failures:
+        raise AssertionError(f"k 四态故障注入失败: {failures}")
+    raw_dynamic = sql_field_contract('${runtime_query:raw}', 'D-raw')
+    if classify_contract_matcher(raw_dynamic, 'Calls') != 'DYNAMIC':
+        raise AssertionError("k :raw 动态 SQL 故障注入失败")
+
+    bare_alias = sql_field_contract('SELECT 1 foo, (1 + 2) bar', 'bare-alias')
+    if classify_contract_matcher(bare_alias, 'foo') != 'PRESENT':
+        raise AssertionError("k 裸别名 SELECT expr alias 故障注入失败")
+    if classify_contract_matcher(bare_alias, 'bar') != 'PRESENT':
+        raise AssertionError("k 裸别名 SELECT (…) alias 故障注入失败")
+
+    enumerable_template = sql_field_contract(
+        'SELECT 1 AS "$length_unit"', 'pure-enumerable',
+        {'length_unit': ('km', 'mi')},
+    )
+    enumerable_cases = {
+        'km': 'DYNAMIC',
+        'mi': 'DYNAMIC',
+        'car_id': 'ABSENT',
+    }
+    for matcher, expected in enumerable_cases.items():
+        actual = classify_contract_matcher(enumerable_template, matcher)
+        if actual != expected:
+            raise AssertionError(
+                f"k 可枚举纯变量模板故障注入失败: {matcher} {actual} != {expected}"
+            )
+
+    include_contract = transform_field_contract(
+        FieldContract(dynamic_patterns={None}),
+        {'id': 'organize', 'options': {'includeByName': {'km': True}}},
+    )
+    if classify_contract_matcher(include_contract, 'car_id') != 'ABSENT':
+        raise AssertionError("k organize.includeByName None 收窄故障注入失败")
+    if classify_contract_matcher(include_contract, 'km') != 'DYNAMIC':
+        raise AssertionError("k organize.includeByName None 保留故障注入失败")
+
+    filter_contract = transform_field_contract(
+        FieldContract(dynamic_patterns={None}),
+        {'id': 'filterFieldsByName', 'options': {'include': {'pattern': '^km$'}}},
+    )
+    if classify_contract_matcher(filter_contract, 'car_id') != 'ABSENT':
+        raise AssertionError("k filterFieldsByName 动态交集收窄故障注入失败")
+    if classify_contract_matcher(filter_contract, 'km') != 'DYNAMIC':
+        raise AssertionError("k filterFieldsByName 动态交集保留故障注入失败")
+
+    print("k 四态故障注入：PRESENT/ABSENT/DYNAMIC/UNKNOWN 各 1 例，全部通过")
+    print("k 冷审故障注入：裸别名/纯变量模板/includeByName None/filter 动态收窄，全部通过")
+
+
 def main():
     verbose_k = False
     update_baseline = False
-    for argument in sys.argv[1:]:
+    k_contract_json = None
+    self_test_k = False
+    arguments = iter(sys.argv[1:])
+    for argument in arguments:
         if argument == '--verbose-k':
             verbose_k = True
         elif argument == '--update-baseline':
             update_baseline = True
+        elif argument == '--k-contract-json':
+            try:
+                k_contract_json = next(arguments)
+            except StopIteration:
+                print("--k-contract-json 缺少路径", file=sys.stderr)
+                sys.exit(2)
+        elif argument == '--self-test-k':
+            self_test_k = True
         elif argument in {'-h', '--help'}:
             print(
                 "用法: bash scripts/check-dashboard-lint.sh "
-                "[--verbose-k] [--update-baseline]"
+                "[--verbose-k] [--update-baseline] [--k-contract-json PATH] [--self-test-k]"
             )
             return
         else:
             print(f"未知参数: {argument}", file=sys.stderr)
             sys.exit(2)
 
+    if self_test_k:
+        run_k_self_test()
+        return
+
     violations = []
     warnings = []
     exemptions = []
     k_occurrences = []
+    k_results = []
     used_whitelist = set()
     n_files = 0
     n_panels = 0
@@ -1167,6 +1697,25 @@ def main():
     }
     project_functions = installed_function_names()
     custom_function_prefixes = derived_custom_function_prefixes(project_functions)
+
+    def collect_panels(value, result):
+        if not isinstance(value, dict):
+            return
+        if 'id' in value and ('targets' in value or 'type' in value):
+            result.setdefault(value.get('id'), value)
+        for child in value.get('panels', []) or []:
+            collect_panels(child, result)
+
+    panel_indexes = {}
+    panel_contract_caches = {}
+    variable_domains_by_file = {}
+    for file_rel, dashboard in dashboards.items():
+        panel_index = {}
+        for panel in dashboard.get('panels', []) or []:
+            collect_panels(panel, panel_index)
+        panel_indexes[file_rel] = panel_index
+        panel_contract_caches[file_rel] = {}
+        variable_domains_by_file[file_rel] = dashboard_variable_domains(dashboard)
 
     def record(file_rel, subject, rule, condition, message):
         if allow_exact(file_rel, subject, rule, condition, used_whitelist):
@@ -1346,32 +1895,46 @@ def main():
                 )
 
             if panel.get('type') in {'table', 'stat'}:
-                aliases = set()
-                has_wildcard = False
-                for context in sql_contexts:
-                    context_aliases, context_wildcard = top_level_select_fields(tokenize_sql(context.sql)[0])
-                    aliases.update(context_aliases)
-                    has_wildcard = has_wildcard or context_wildcard
+                contract = panel_field_contract(
+                    panel, panel_indexes[file_rel], panel_contract_caches[file_rel],
+                    variable_domains=variable_domains_by_file[file_rel],
+                )
                 for override_index, override in enumerate(field_config.get('overrides', []) or []):
                     matcher = override.get('matcher') or {}
                     matcher_value = matcher.get('options')
                     if matcher.get('id') != 'byName' or not isinstance(matcher_value, str):
                         continue
-                    if has_wildcard or any(output_field_matches(matcher_value, alias) for alias in aliases):
-                        continue
-                    condition = {
-                        'kind': 'orphan_by_name',
-                        'matcher': matcher_value,
-                        'aliases': tuple(sorted(aliases)),
-                    }
                     properties_hash = override_properties_hash(override.get('properties', []) or [])
                     key = k_key(file_rel, panel_id, matcher_value, properties_hash)
-                    k_occurrences.append((
-                        key,
-                        f"{file_rel} :: {label} :: k :: override byName={matcher_value!r} "
-                        f"propertiesHash={properties_hash} 不在顶层 SELECT AS 别名中；"
-                        f"已见别名={sorted(aliases)!r}",
-                    ))
+                    state = classify_contract_matcher(contract, matcher_value)
+                    reasons = []
+                    if state == 'DYNAMIC':
+                        reasons = sorted(contract.dynamic_reasons)
+                    elif state == 'UNKNOWN':
+                        reasons = sorted(contract.unknown_reasons)
+                    message = (
+                        f"{file_rel} :: {label} :: k :: {state} byName={matcher_value!r} "
+                        f"propertiesHash={properties_hash}；最终确定字段={sorted(contract.fields)!r}"
+                    )
+                    if reasons:
+                        message += f"；原因={reasons!r}"
+                    result = {
+                        'file': file_rel,
+                        'panelId': panel_id,
+                        'panelTitle': title,
+                        'panelType': panel.get('type'),
+                        'matcher': matcher_value,
+                        'propertiesHash': properties_hash,
+                        'properties': override.get('properties', []) or [],
+                        'state': state,
+                        'fields': sorted(contract.fields),
+                        'dynamicReasons': sorted(contract.dynamic_reasons),
+                        'pureVariableReasons': sorted(contract.pure_variable_reasons),
+                        'unknownReasons': sorted(contract.unknown_reasons),
+                    }
+                    k_results.append(result)
+                    if state == 'ABSENT':
+                        k_occurrences.append((key, message))
 
             for target_index, target in enumerate(panel.get('targets', []) or []):
                 if not isinstance(target, dict) or not isinstance(target.get('rawSql'), str) or not target.get('rawSql').strip():
@@ -1487,7 +2050,70 @@ def main():
         if index not in used_whitelist
     ]
 
+    state_counts = Counter(result['state'] for result in k_results)
+    print(
+        "k 四态统计：" + " / ".join(
+            f"{state} {state_counts[state]}" for state in K_STATES
+        )
+    )
+
+    if verbose_k:
+        pure_variable_entries = [
+            result for result in k_results
+            if result['state'] == 'DYNAMIC' and result['pureVariableReasons']
+        ]
+        print()
+        print(f"k 纯变量模板警示（{len(pure_variable_entries)} 条）：")
+        print()
+        for result in pure_variable_entries:
+            print(
+                f"  {result['file']} :: panel {result['panelId']} :: "
+                f"byName={result['matcher']!r}；"
+                f"原因={result['pureVariableReasons']!r}"
+            )
+        for state in K_STATES:
+            entries = [result for result in k_results if result['state'] == state]
+            print()
+            print(f"k {state} 明细（{len(entries)} 条）：")
+            print()
+            for result in entries:
+                reason_values = (
+                    result['dynamicReasons'] if state == 'DYNAMIC' else result['unknownReasons']
+                )
+                reason = f"；原因={reason_values!r}" if reason_values else ''
+                print(
+                    f"  {result['file']} :: panel {result['panelId']} :: "
+                    f"byName={result['matcher']!r}；字段={result['fields']!r}{reason}"
+                )
+
+    if k_contract_json:
+        contract_document = {
+            'version': 1,
+            'states': list(K_STATES),
+            'stateCounts': {state: state_counts[state] for state in K_STATES},
+            'entries': sorted(
+                k_results,
+                key=lambda item: (
+                    item['file'], str(item['panelId']), item['matcher'], item['propertiesHash']
+                ),
+            ),
+        }
+        directory = os.path.dirname(os.path.abspath(k_contract_json)) or '.'
+        with tempfile.NamedTemporaryFile(
+            mode='w', encoding='utf-8', dir=directory, prefix='.k-contract.', delete=False
+        ) as handle:
+            json.dump(contract_document, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.write('\n')
+            contract_temporary_path = handle.name
+        os.replace(contract_temporary_path, k_contract_json)
+
     current_k = Counter(key for key, _ in k_occurrences)
+    result_states_by_key = {
+        k_key(
+            result['file'], result['panelId'], result['matcher'], result['propertiesHash']
+        ): result['state']
+        for result in k_results
+    }
     try:
         baseline_k = load_k_baseline(allow_missing=update_baseline)
     except ValueError as error:
@@ -1503,12 +2129,23 @@ def main():
     elif update_baseline:
         added_before_update = current_k - baseline_k
         removed_before_update = baseline_k - current_k
+        reclassified = Counter()
+        for key, count in removed_before_update.items():
+            reclassified[result_states_by_key.get(key, 'DELETED_OR_CHANGED')] += count
         write_k_baseline(current_k)
         print(
             "k 基线更新："
             f"新增 {sum(added_before_update.values())} 条，"
             f"删除 {sum(removed_before_update.values())} 条，"
             f"现有 {sum(current_k.values())} 条"
+        )
+        print(
+            "k 基线 diff 摘要：旧 ABSENT → "
+            f"PRESENT {reclassified['PRESENT']} / "
+            f"DYNAMIC {reclassified['DYNAMIC']} / "
+            f"UNKNOWN {reclassified['UNKNOWN']} / "
+            f"删除或属性变更 {reclassified['DELETED_OR_CHANGED']}；"
+            f"新 ABSENT {sum(added_before_update.values())}"
         )
         baseline_k = current_k.copy()
 
@@ -1525,13 +2162,6 @@ def main():
     baseline_inside_count = sum((current_k & baseline_k).values())
 
     print(f"k 基线内 {baseline_inside_count} 条，新增 {len(added_messages)} 条")
-    if verbose_k and baseline_messages:
-        print()
-        print("k 基线内明细：")
-        print()
-        for message in baseline_messages:
-            print("  " + message)
-
     if added_messages:
         print()
         print("k 基线外新增（必须修复或显式更新基线）：")
