@@ -43,8 +43,16 @@
 #   s 老变量语法               — rawSql 或模板变量内容不得包含 [[...]]。
 #   t panel id 唯一性          — 同一 dashboard 内含 row 子面板的 panel id 不得重复。
 #   u SQL target 数据源        — rawSql target 只允许 TeslaMate、继承值或模板变量 datasource。
+#   v 分桶无序+首末聚合       — stat/gauge/bargauge 使用首末 reduce calc 时，
+#                                只看最外层查询（括号深度 0）：外层有 GROUP BY 必须同时有
+#                                外层 ORDER BY；CTE 主体/子查询内的 GROUP BY / ORDER BY 不算。
+#   w reduceOptions.fields 与最终显示名失配 — stat/gauge/bargauge 非空 reduceOptions.fields
+#                                正则复用 k 同款字段契约，套用 byName displayName override 后
+#                                必须至少匹配一个最终显示名；只匹配改名前旧别名、匹配不到改名后
+#                                显示名时单独报错（CurrentChargeView panel 47 案）。契约整体
+#                                DYNAMIC/UNKNOWN（无任何具体字段）的面板跳过，--verbose-k 计数。
 #
-# a/d/f/g/l/p/q/r 共用一次 PostgreSQL-lite 词法扫描后的代码 token 流（注释已剔除，字符串保留为
+# a/d/f/g/l/p/q/r/v 共用一次 PostgreSQL-lite 词法扫描后的代码 token 流（注释已剔除，字符串保留为
 # 有类型 token）；b 只检查同一扫描产出的字符串字面量内容。白名单不是 panel 级开关：
 # 每条都带可校验条件；本次扫描未命中的条目视为过期白名单并直接失败。
 
@@ -201,6 +209,12 @@ POSTGRES_BUILTIN_FUNCTIONS = {
 }
 DASHBOARD_PATH_RE = re.compile(r'(?:^|/)d/([A-Za-z0-9_-]+)(?=/|$)')
 NAIVE_DATE_COLUMNS = {'date', 'start_date', 'end_date'}
+# $__time/$__timeEpoch/$__timeGroupAlias 展开后固定带 `... AS "time"`；裸 $__timeGroup
+# 不带别名，本仓用法均自行写 AS，交由显式别名分支处理，不在此列。
+TIME_ALIAS_MACROS = {'$__time', '$__timeepoch', '$__timegroupalias'}
+REDUCE_FIELD_PANEL_TYPES = {'stat', 'gauge', 'bargauge'}
+FIELD_REGEX_WRAPPED_RE = re.compile(r'^/(?P<pattern>.*)/(?P<flags>[a-zA-Z]*)$')
+EDGE_REDUCE_CALCS = {'last', 'lastNotNull', 'first', 'firstNotNull'}
 
 Token = namedtuple('Token', 'kind value start end')
 SqlContext = namedtuple('SqlContext', 'sql target_ref target_path')
@@ -367,6 +381,19 @@ def identifier_value(token):
 def token_is(token, value):
     ident = identifier_value(token)
     return ident == value.lower() if ident is not None else token.value.lower() == value.lower()
+
+
+def has_sql_clause(tokens, first, second):
+    """只在代码关键字中识别两段式 SQL 子句，且只认最外层查询（括号深度 0）；
+    字符串、引号标识符、CTE 主体/子查询内的同名子句均不计。"""
+    depths = token_depths(tokens)
+    return any(
+        depths[index] == 0 and depths[index + 1] == 0
+        and left.kind == right.kind == 'identifier'
+        and left.value.lower() == first
+        and right.value.lower() == second
+        for index, (left, right) in enumerate(zip(tokens, tokens[1:]))
+    )
 
 
 def matching_paren(tokens, open_index):
@@ -879,6 +906,15 @@ def sql_field_contract(sql, target_ref='?', variable_domains=None):
             value = expr[2].value if expr[2].kind == 'quoted_identifier' else expr[2].value.lower()
             add_contract_field(contract, value, f"target {target_ref} 变量列名")
             continue
+        # Grafana 时间宏无显式 AS 时自带隐式别名 "time"，必须先于下面的默认列名兜底识别，
+        # 否则会被误判成不可预测的 ?column?（宏名是 variable token，不是 identifier）。
+        if (
+            expr and expr[0].kind == 'variable'
+            and expr[0].value.lower() in TIME_ALIAS_MACROS
+            and len(expr) > 1 and expr[1].value == '('
+        ):
+            add_contract_field(contract, 'time', f"target {target_ref} Grafana 时间宏隐式别名")
+            continue
         # PostgreSQL 对未起别名的函数/CASE 使用稳定的函数名/"case" 作为列名。
         first = identifier_value(expr[0])
         if first and (first == 'case' or (len(expr) > 1 and expr[1].value == '(')):
@@ -891,7 +927,7 @@ def sql_field_contract(sql, target_ref='?', variable_domains=None):
     return contract
 
 
-def target_field_contract(target, panel_index, panel_cache, stack, variable_domains=None):
+def target_field_contract(target, panel_index, panel_cache, stack, variable_domains=None, pretransform_cache=None):
     ref_id = target.get('refId', '?')
     raw_sql = target.get('rawSql')
     if isinstance(raw_sql, str) and raw_sql.strip():
@@ -911,11 +947,45 @@ def target_field_contract(target, panel_index, panel_cache, stack, variable_doma
         source = panel_index.get(source_panel_id)
         if source is None:
             return FieldContract(unknown_reasons={f"dashboard datasource 引用不存在的 panel {source_panel_id}"})
-        return panel_field_contract(
-            source, panel_index, panel_cache, stack, variable_domains
+        # Grafana 的 DashboardDatasource 默认拿源面板 SceneDataTransformer *之前* 的原始查询
+        # 结果，只有 target.withTransforms=true 才会拿变换后的结果（源码见 grafana/grafana
+        # public/app/plugins/datasource/dashboard/datasource.ts：
+        # `if (!query.withTransforms && sourceDataProvider instanceof SceneDataTransformer)
+        #    sourceDataProvider = sourceDataProvider.state.$data;`）。
+        # 本仓没有任何 target 设置 withTransforms，默认必须用「预变换」契约，否则源面板自身的
+        # organize/exclude 会被误当成对下游可见——曾把 locations.json 三个按维度取数的面板、
+        # trip.json joinByField 依赖的 metric/value 列误判成 ABSENT。
+        if target.get('withTransforms') is True:
+            return panel_field_contract(
+                source, panel_index, panel_cache, stack, variable_domains, pretransform_cache
+            ).copy()
+        cache = pretransform_cache if pretransform_cache is not None else {}
+        return panel_pretransform_field_contract(
+            source, panel_index, panel_cache, cache, stack, variable_domains
         ).copy()
 
     return FieldContract(unknown_reasons={f"target {ref_id} 没有可静态解释的 rawSql"})
+
+
+def panel_pretransform_field_contract(panel, panel_index, panel_cache, pretransform_cache, stack=(), variable_domains=None):
+    """面板 targets 合并后、面板自身 transformations 应用前的契约；dashboard 数据源默认取的
+    正是这个阶段（见上面 target_field_contract 内的源码引用）。"""
+    panel_id = panel.get('id', '?')
+    if panel_id in pretransform_cache:
+        return pretransform_cache[panel_id]
+    if panel_id in stack:
+        return FieldContract(unknown_reasons={f"dashboard datasource panel 引用成环: {panel_id}"})
+
+    contract = FieldContract(variable_domains=variable_domains)
+    targets = [target for target in (panel.get('targets') or []) if isinstance(target, dict)]
+    if not targets:
+        contract.unknown_reasons.add(f"panel {panel_id} 没有 target")
+    for target in targets:
+        contract.merge(target_field_contract(
+            target, panel_index, panel_cache, stack + (panel_id,), variable_domains, pretransform_cache
+        ))
+    pretransform_cache[panel_id] = contract
+    return contract
 
 
 def calc_operand_names(options):
@@ -1093,7 +1163,7 @@ def transform_field_contract(contract, transformation):
     return result
 
 
-def panel_field_contract(panel, panel_index, panel_cache, stack=(), variable_domains=None):
+def panel_field_contract(panel, panel_index, panel_cache, stack=(), variable_domains=None, pretransform_cache=None):
     panel_id = panel.get('id', '?')
     if panel_id in panel_cache:
         return panel_cache[panel_id]
@@ -1106,7 +1176,7 @@ def panel_field_contract(panel, panel_index, panel_cache, stack=(), variable_dom
         contract.unknown_reasons.add(f"panel {panel_id} 没有 target")
     for target in targets:
         contract.merge(target_field_contract(
-            target, panel_index, panel_cache, stack + (panel_id,), variable_domains
+            target, panel_index, panel_cache, stack + (panel_id,), variable_domains, pretransform_cache
         ))
     for transformation in panel.get('transformations') or []:
         if isinstance(transformation, dict):
@@ -1123,6 +1193,72 @@ def classify_contract_matcher(contract, matcher):
     if contract.unknown_reasons:
         return 'UNKNOWN'
     return 'ABSENT'
+
+
+def parse_grafana_field_regex(value):
+    """reduceOptions.fields 是 JS 正则；本仓一律写 /pattern/flags，裸字符串按整串正则兜底。"""
+    match = FIELD_REGEX_WRAPPED_RE.match(value)
+    pattern, flags_str = (match.group('pattern'), match.group('flags')) if match else (value, '')
+    flags = re.IGNORECASE if 'i' in flags_str else 0
+    try:
+        return re.compile(pattern, flags)
+    except re.error:
+        return None
+
+
+def panel_byname_rename_map(panel):
+    """byName override 的 displayName 链；同名 override 出现多次时最后一个生效，
+    与 Grafana 按数组顺序逐条应用 fieldConfig.overrides 的行为一致。"""
+    rename_map = {}
+    field_config = panel.get('fieldConfig', {}) or {}
+    for override in field_config.get('overrides', []) or []:
+        matcher = override.get('matcher') or {}
+        if matcher.get('id') != 'byName':
+            continue
+        original = matcher.get('options')
+        if not isinstance(original, str):
+            continue
+        for prop in override.get('properties', []) or []:
+            if prop.get('id') == 'displayName' and isinstance(prop.get('value'), str) and prop.get('value'):
+                rename_map[original] = prop['value']
+    return rename_map
+
+
+def reduce_field_display_names(contract, rename_map):
+    """把契约字段套用 byName displayName override，得到 (最终显示名集合, 曾被改名的原始别名集合)。"""
+    finals = set()
+    renamed_originals = set()
+    for name in contract.fields:
+        final = rename_map.get(name, name)
+        finals.add(final)
+        if final != name:
+            renamed_originals.add(name)
+    return finals, renamed_originals
+
+
+def classify_reduce_fields_matcher(contract, rename_map, fields_pattern):
+    """规则 w 核心判定。
+
+    返回 (verdict, detail)：
+      SKIP_UNKNOWN / SKIP_DYNAMIC — 契约整体没有任何具体字段，无法判定，跳过（--verbose-k 计数）
+      REGEX_ERROR   — reduceOptions.fields 本身不是合法正则
+      MATCH         — 正则命中至少一个最终显示名，绿
+      STALE_ALIAS   — 正则只命中「改名前」的原始别名、命中不了改名后的最终显示名（47 案）
+      NO_MATCH      — 正则命中不了任何原始别名或最终显示名
+    """
+    if not contract.fields and contract.unknown_reasons:
+        return 'SKIP_UNKNOWN', sorted(contract.unknown_reasons)
+    if not contract.fields and contract.dynamic_patterns:
+        return 'SKIP_DYNAMIC', sorted(contract.dynamic_reasons)
+    regex = parse_grafana_field_regex(fields_pattern)
+    if regex is None:
+        return 'REGEX_ERROR', fields_pattern
+    finals, renamed_originals = reduce_field_display_names(contract, rename_map)
+    if any(regex.search(name) for name in finals):
+        return 'MATCH', sorted(finals)
+    if any(regex.search(name) for name in renamed_originals):
+        return 'STALE_ALIAS', sorted(renamed_originals)
+    return 'NO_MATCH', sorted(finals)
 
 
 def dashboard_variable_domains(dashboard):
@@ -1630,11 +1766,97 @@ def run_k_self_test():
     print("k 冷审故障注入：裸别名/纯变量模板/includeByName None/filter 动态收窄，全部通过")
 
 
+def _w_panel(rename_from, rename_to, sql_alias, fields_pattern, extra_target_sql=None):
+    """构造规则 w 自测用的最小 stat 面板：单 target、单 byName displayName override。"""
+    targets = [{'refId': 'A', 'rawSql': f'SELECT avg(x) AS "{sql_alias}" FROM charges'}]
+    if extra_target_sql:
+        targets.append({'refId': 'B', 'rawSql': extra_target_sql})
+    overrides = []
+    if rename_from is not None:
+        overrides.append({
+            'matcher': {'id': 'byName', 'options': rename_from},
+            'properties': [{'id': 'displayName', 'value': rename_to}],
+        })
+    return {
+        'id': 999,
+        'type': 'stat',
+        'title': 'w-self-test',
+        'fieldConfig': {'overrides': overrides},
+        'options': {'reduceOptions': {'calcs': ['lastNotNull'], 'fields': fields_pattern, 'values': False}},
+        'targets': targets,
+    }
+
+
+def run_w_self_test():
+    """不碰 dashboard 文件：47 案原样复现必红、修复后写法必绿、动态字段面板不误报。"""
+    panel_index, cache = {}, {}
+
+    # 47 案原样复现：override 已把「电压」改名成「充电器电压」，但 reduceOptions.fields
+    # 还停在改名前的 /^电压$/ —— 必须判定 STALE_ALIAS（红）。
+    stale_panel = _w_panel('电压', '充电器电压', '电压', '/^电压$/')
+    stale_contract = panel_field_contract(stale_panel, panel_index, cache)
+    stale_rename_map = panel_byname_rename_map(stale_panel)
+    verdict, _ = classify_reduce_fields_matcher(stale_contract, stale_rename_map, '/^电压$/')
+    if verdict != 'STALE_ALIAS':
+        raise AssertionError(f"w 47 案复现故障注入失败：期待 STALE_ALIAS，实得 {verdict}")
+
+    # 修复写法：正则同时兼容改名前后两个名字 —— 必须判定 MATCH（绿）。
+    fixed_panel = _w_panel('电压', '充电器电压', '电压', '/^(电压|充电器电压)$/')
+    fixed_contract = panel_field_contract(fixed_panel, {}, {})
+    fixed_rename_map = panel_byname_rename_map(fixed_panel)
+    verdict, _ = classify_reduce_fields_matcher(fixed_contract, fixed_rename_map, '/^(电压|充电器电压)$/')
+    if verdict != 'MATCH':
+        raise AssertionError(f"w 修复写法故障注入失败：期待 MATCH，实得 {verdict}")
+
+    # 动态字段面板不误报：整段 SQL 来自 :raw 变量，契约给不出任何具体字段名 —— 必须跳过
+    # （SKIP_DYNAMIC），不能被误判成 STALE_ALIAS/NO_MATCH 拉violations。
+    dynamic_panel = {
+        'id': 998, 'type': 'stat', 'title': 'w-self-test-dynamic',
+        'fieldConfig': {'overrides': []},
+        'options': {'reduceOptions': {'calcs': ['lastNotNull'], 'fields': '/^whatever$/', 'values': False}},
+        'targets': [{'refId': 'A', 'rawSql': '${runtime_query:raw}'}],
+    }
+    dynamic_contract = panel_field_contract(dynamic_panel, {}, {})
+    verdict, _ = classify_reduce_fields_matcher(dynamic_contract, {}, '/^whatever$/')
+    if verdict != 'SKIP_DYNAMIC':
+        raise AssertionError(f"w 动态字段不误报故障注入失败：期待 SKIP_DYNAMIC，实得 {verdict}")
+
+    # UNKNOWN 同理不误报（SELECT * 依赖 schema，静态分析给不出字段名）。
+    unknown_panel = {
+        'id': 997, 'type': 'gauge', 'title': 'w-self-test-unknown',
+        'fieldConfig': {'overrides': []},
+        'options': {'reduceOptions': {'calcs': ['lastNotNull'], 'fields': '/^whatever$/', 'values': False}},
+        'targets': [{'refId': 'A', 'rawSql': 'SELECT * FROM runtime_schema.t'}],
+    }
+    unknown_contract = panel_field_contract(unknown_panel, {}, {})
+    verdict, _ = classify_reduce_fields_matcher(unknown_contract, {}, '/^whatever$/')
+    if verdict != 'SKIP_UNKNOWN':
+        raise AssertionError(f"w UNKNOWN 不误报故障注入失败：期待 SKIP_UNKNOWN，实得 {verdict}")
+
+    # 完全无关：正则既不匹配改名前也不匹配改名后 —— 与 STALE_ALIAS 区分为 NO_MATCH。
+    unrelated_panel = _w_panel('电压', '充电器电压', '电压', '/^voltage$/')
+    unrelated_contract = panel_field_contract(unrelated_panel, {}, {})
+    verdict, _ = classify_reduce_fields_matcher(unrelated_contract, panel_byname_rename_map(unrelated_panel), '/^voltage$/')
+    if verdict != 'NO_MATCH':
+        raise AssertionError(f"w 完全无关故障注入失败：期待 NO_MATCH，实得 {verdict}")
+
+    # 非法正则单独识别为 REGEX_ERROR，不混进 NO_MATCH。
+    broken_panel = _w_panel(None, None, '电压', '/^(unterminated$/')
+    broken_contract = panel_field_contract(broken_panel, {}, {})
+    verdict, _ = classify_reduce_fields_matcher(broken_contract, {}, '/^(unterminated$/')
+    if verdict != 'REGEX_ERROR':
+        raise AssertionError(f"w 非法正则故障注入失败：期待 REGEX_ERROR，实得 {verdict}")
+
+    print("w 故障注入：47 案复现(STALE_ALIAS)/修复写法(MATCH)/动态跳过(SKIP_DYNAMIC)/"
+          "UNKNOWN跳过(SKIP_UNKNOWN)/完全无关(NO_MATCH)/非法正则(REGEX_ERROR)，全部通过")
+
+
 def main():
     verbose_k = False
     update_baseline = False
     k_contract_json = None
     self_test_k = False
+    self_test_w = False
     arguments = iter(sys.argv[1:])
     for argument in arguments:
         if argument == '--verbose-k':
@@ -1649,10 +1871,13 @@ def main():
                 sys.exit(2)
         elif argument == '--self-test-k':
             self_test_k = True
+        elif argument == '--self-test-w':
+            self_test_w = True
         elif argument in {'-h', '--help'}:
             print(
                 "用法: bash scripts/check-dashboard-lint.sh "
-                "[--verbose-k] [--update-baseline] [--k-contract-json PATH] [--self-test-k]"
+                "[--verbose-k] [--update-baseline] [--k-contract-json PATH] "
+                "[--self-test-k] [--self-test-w]"
             )
             return
         else:
@@ -1663,11 +1888,16 @@ def main():
         run_k_self_test()
         return
 
+    if self_test_w:
+        run_w_self_test()
+        return
+
     violations = []
     warnings = []
     exemptions = []
     k_occurrences = []
     k_results = []
+    w_results = []
     used_whitelist = set()
     n_files = 0
     n_panels = 0
@@ -1708,6 +1938,7 @@ def main():
 
     panel_indexes = {}
     panel_contract_caches = {}
+    panel_pretransform_caches = {}
     variable_domains_by_file = {}
     for file_rel, dashboard in dashboards.items():
         panel_index = {}
@@ -1715,6 +1946,7 @@ def main():
             collect_panels(panel, panel_index)
         panel_indexes[file_rel] = panel_index
         panel_contract_caches[file_rel] = {}
+        panel_pretransform_caches[file_rel] = {}
         variable_domains_by_file[file_rel] = dashboard_variable_domains(dashboard)
 
     def record(file_rel, subject, rule, condition, message):
@@ -1898,6 +2130,7 @@ def main():
                 contract = panel_field_contract(
                     panel, panel_indexes[file_rel], panel_contract_caches[file_rel],
                     variable_domains=variable_domains_by_file[file_rel],
+                    pretransform_cache=panel_pretransform_caches[file_rel],
                 )
                 for override_index, override in enumerate(field_config.get('overrides', []) or []):
                     matcher = override.get('matcher') or {}
@@ -1936,10 +2169,72 @@ def main():
                     if state == 'ABSENT':
                         k_occurrences.append((key, message))
 
+            if panel.get('type') in REDUCE_FIELD_PANEL_TYPES:
+                reduce_options = ((panel.get('options') or {}).get('reduceOptions')) or {}
+                fields_pattern = reduce_options.get('fields')
+                if isinstance(fields_pattern, str) and fields_pattern.strip():
+                    contract = panel_field_contract(
+                        panel, panel_indexes[file_rel], panel_contract_caches[file_rel],
+                        variable_domains=variable_domains_by_file[file_rel],
+                        pretransform_cache=panel_pretransform_caches[file_rel],
+                    )
+                    rename_map = panel_byname_rename_map(panel)
+                    verdict, detail = classify_reduce_fields_matcher(contract, rename_map, fields_pattern)
+                    w_results.append({
+                        'file': file_rel,
+                        'panelId': panel_id,
+                        'panelTitle': title,
+                        'panelType': panel.get('type'),
+                        'fieldsPattern': fields_pattern,
+                        'verdict': verdict,
+                        'detail': detail,
+                    })
+                    if verdict == 'STALE_ALIAS':
+                        condition = {
+                            'kind': 'reduce_fields_stale_alias',
+                            'fields_pattern': fields_pattern,
+                        }
+                        record(
+                            file_rel, panel_id, 'w', condition,
+                            f"{label} :: w :: reduceOptions.fields={fields_pattern!r} 只匹配改名前的原始"
+                            f"别名 {detail!r}，套用 byName displayName override 后的最终显示名"
+                            f"{sorted(reduce_field_display_names(contract, rename_map)[0])!r} 匹配不到"
+                            "（同 CurrentChargeView panel 47 案：override 改名后 reduceOptions.fields 未同步）",
+                        )
+                    elif verdict == 'NO_MATCH':
+                        condition = {
+                            'kind': 'reduce_fields_no_match',
+                            'fields_pattern': fields_pattern,
+                        }
+                        record(
+                            file_rel, panel_id, 'w', condition,
+                            f"{label} :: w :: reduceOptions.fields={fields_pattern!r} 未匹配任何最终显示名 "
+                            f"{detail!r}",
+                        )
+                    elif verdict == 'REGEX_ERROR':
+                        condition = {
+                            'kind': 'reduce_fields_regex_error',
+                            'fields_pattern': fields_pattern,
+                        }
+                        record(
+                            file_rel, panel_id, 'w', condition,
+                            f"{label} :: w :: reduceOptions.fields={fields_pattern!r} 不是合法正则",
+                        )
+
             for target_index, target in enumerate(panel.get('targets', []) or []):
                 if not isinstance(target, dict) or not isinstance(target.get('rawSql'), str) or not target.get('rawSql').strip():
                     continue
                 ref_id = target.get('refId', '?')
+                reduce_calcs = set(
+                    ((panel.get('options') or {}).get('reduceOptions') or {}).get('calcs') or []
+                )
+                if panel.get('type') in {'stat', 'gauge', 'bargauge'} and reduce_calcs & EDGE_REDUCE_CALCS:
+                    target_tokens, _ = tokenize_sql(target['rawSql'])
+                    if has_sql_clause(target_tokens, 'group', 'by') and not has_sql_clause(target_tokens, 'order', 'by'):
+                        violations.append(
+                            f"{file_rel} :: {label} :: v :: target {ref_id!r} "
+                            "分桶无序+首末聚合=非确定值"
+                        )
                 if panel.get('type') == 'timeseries' and target.get('format') == 'table':
                     if ref_id in panel_config_refs:
                         exemptions.append(
@@ -2057,6 +2352,14 @@ def main():
         )
     )
 
+    w_verdict_counts = Counter(result['verdict'] for result in w_results)
+    w_skip_count = w_verdict_counts['SKIP_DYNAMIC'] + w_verdict_counts['SKIP_UNKNOWN']
+    print(
+        f"w reduceOptions.fields 统计：MATCH {w_verdict_counts['MATCH']} / "
+        f"STALE_ALIAS {w_verdict_counts['STALE_ALIAS']} / NO_MATCH {w_verdict_counts['NO_MATCH']} / "
+        f"REGEX_ERROR {w_verdict_counts['REGEX_ERROR']} / 跳过(DYNAMIC+UNKNOWN) {w_skip_count}"
+    )
+
     if verbose_k:
         pure_variable_entries = [
             result for result in k_results
@@ -2085,6 +2388,17 @@ def main():
                     f"  {result['file']} :: panel {result['panelId']} :: "
                     f"byName={result['matcher']!r}；字段={result['fields']!r}{reason}"
                 )
+
+        print()
+        print(f"w 跳过明细（DYNAMIC/UNKNOWN 无具体字段，{w_skip_count} 条）：")
+        print()
+        for result in w_results:
+            if result['verdict'] not in ('SKIP_DYNAMIC', 'SKIP_UNKNOWN'):
+                continue
+            print(
+                f"  {result['file']} :: panel {result['panelId']} :: "
+                f"fields={result['fieldsPattern']!r}；{result['verdict']}；原因={result['detail']!r}"
+            )
 
     if k_contract_json:
         contract_document = {
