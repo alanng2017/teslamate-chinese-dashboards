@@ -199,7 +199,7 @@ done
 docker compose restart grafana
 ```
 
-脚本使用 `CREATE OR REPLACE` / `IF NOT EXISTS`，可安全重跑；一键安装用户直接重跑 `simple-deploy.sh` 也会自动安装。默认 `REF=main` 与 `:latest` 同步；需要锁版本时先执行 `export SQL_REF=v1.6.2`，安全取舍见 [README 的信任模型](README.md#sql-trust-model)。装完刷新即恢复。
+脚本使用 `CREATE OR REPLACE` / `IF NOT EXISTS`，可安全重跑；一键安装用户直接重跑 `simple-deploy.sh` 也会自动安装。默认 `REF=main` 与 `:latest` 同步；需要锁版本时先执行 `export SQL_REF=v1.6.2`，安全取舍见 [信任模型](#sql-trust-model)。装完刷新即恢复。
 
 ### ❌ 单位换算面板报 `function convert_km(...) does not exist`
 
@@ -1545,3 +1545,47 @@ docker compose up -d         # 重新开始
    - Docker 版本（`docker --version`）
    - 错误日志截图或文字
    - 你做了什么操作之后出现的问题
+
+<a id="sql-trust-model"></a>
+
+## 🔒 SQL 远程拉取的信任模型
+
+升级路径中的所有「SQL 安装文件」（`install-coord-functions` / `install-unit-functions` / `install-tou` / `install-indexes`）都是从 GitHub 拉到本地用 `psql` 执行。这是**典型的 `curl | bash` 信任模型**：
+
+- ✅ **传输安全**：HTTPS + GitHub 证书，中间人无法篡改
+- ⚠️ **来源信任**：你信任 `wjsall/teslamate-chinese-dashboards` 仓库的内容
+- ⚠️ **维护者风险**：若维护者 GitHub 账号被盗，攻击者可推恶意 SQL → 所有用 `main` ref 的用户下次升级会拉到恶意脚本 → psql 执行 → **数据库层任意代码执行**
+
+### 想强化安全的用户：锁固定版本
+
+把所有命令里的 `main` 替换成具体 tag（如 `v1.6.2`）：
+
+```bash
+# 原（默认，跟 :latest 镜像同步）
+curl -fsSL "https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/sql/install-tou.sql" | ...
+
+# 锁版本（推荐有安全洁癖的用户）
+curl -fsSL "https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/v1.6.2/sql/install-tou.sql" | ...
+```
+
+或者跑 `simple-deploy.sh` / `migrate-from-official.sh` 时传环境变量：
+
+```bash
+SQL_REF=v1.6.2 bash simple-deploy.sh
+REPO_REF=v1.6.2 bash migrate-from-official.sh
+```
+
+锁版本后**升级到新功能需要手动改 ref 数字**（不会自动升）。这是**安全 vs 便利的 trade-off**，按你需求选。
+
+### 为什么默认是 `main` 而不是固定版本
+
+- 大部分用户希望"重跑脚本就能拿到最新 bug 修复 / 函数升级"，固定 ref 反而让 Watchtower 自动升镜像后 SQL 不同步
+- 维护者账号被盗概率低（GitHub 2FA），破坏面广（所有用户）—— **这条主要靠 GitHub 账号防御 + 你愿意时锁版本**
+- 仓库公开，每条 SQL commit 都可审计，社区和我（维护者）第一时间能看到异常 push
+
+### Cloudflare 镜像（避免直连 GitHub raw）
+
+国内访问 `raw.githubusercontent.com` 偶尔不稳，可以替换成镜像。**注意信任边界**：
+
+- **`ghproxy.com` 等第三方镜像** ⚠️ — 镜像运营方能改返回内容（实际是新加一个 MITM 信任点），仅在你信任该镜像方时使用
+- **自建 Cloudflare Worker 转发 raw 内容** ✅ — 你完全控制 Worker 源码 → 等价直连
