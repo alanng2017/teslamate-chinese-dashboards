@@ -1339,8 +1339,8 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "outside_temp"
+              "id": "byRegexp",
+              "options": "^outside_temp_avg_.*"
             },
             "properties": [
               {

@@ -17,13 +17,6 @@
     {
       "file": "grafana/dashboards/internal/charge-details.json",
       "panelId": 13,
-      "matcher": "charger_power",
-      "propertiesHash": "sha256:e2aec0fc7f44107bc2e9a77ee243a6ae17c47b5938a5c117cb621ba75c824b77",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/internal/charge-details.json",
-      "panelId": 13,
       "matcher": "charger_voltage",
       "propertiesHash": "sha256:3703a26fa53da22ae65d1678b93a20f7b6e2144628036e421f7bba912cbd5aa7",
       "count": 1
@@ -33,13 +26,6 @@
       "panelId": 13,
       "matcher": "power",
       "propertiesHash": "sha256:2af84702d648358511bf80e0ead6022e2ff4f2c778cc996598fe24b4124028f9",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/internal/charge-details.json",
-      "panelId": 15,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
       "count": 1
     },
     {
@@ -339,29 +325,8 @@
     {
       "file": "grafana/dashboards/zh-cn/ChargingCostsStats.json",
       "panelId": 58,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/ChargingCostsStats.json",
-      "panelId": 58,
       "matcher": "usable_battery_level",
       "propertiesHash": "sha256:8dbe9d2cabff6ccc589fbd50786fea3e42a7a9c195f7be84cf84b499ca9a993c",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/ChargingCostsStats.json",
-      "panelId": 58,
-      "matcher": "周期",
-      "propertiesHash": "sha256:d8df1daaa44ce383003c6aad258fe4dbc008f9c2a15c71f47ee89195bde6cbac",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/ChargingCostsStats.json",
-      "panelId": 58,
-      "matcher": "效率",
-      "propertiesHash": "sha256:7bdea5cdba918d4c3a9b54c277dff4851c2beb96ec21182a9e44ce08504fdb33",
       "count": 1
     },
     {
@@ -584,13 +549,6 @@
     {
       "file": "grafana/dashboards/zh-cn/ContinuousTrips.json",
       "panelId": 2,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/ContinuousTrips.json",
-      "panelId": 2,
       "matcher": "outside_temp_f",
       "propertiesHash": "sha256:e338c572ccfa9bc0fd61d07598df7587da2edc7d6565420c93685e1113926671",
       "count": 1
@@ -625,44 +583,9 @@
     },
     {
       "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 16,
-      "matcher": "odometer",
-      "propertiesHash": "sha256:ddc1fa21cb54e65bd0328d79b83ba69d906b8ca106430b324f11fa37281eb8bc",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 24,
-      "matcher": "ac_temp",
-      "propertiesHash": "sha256:b50ffdc89e49d3b46ccfd5376dd95098682d00a585fb282d6c71a1be68445b2b",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
       "panelId": 24,
       "matcher": "car_id",
       "propertiesHash": "sha256:e09c286787d5af987a5bd4d70512ae1b75f43194710f2e2998a5d93230798178",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 24,
-      "matcher": "inside_temp",
-      "propertiesHash": "sha256:1b1e13395e1190be7773ab8f1025a71fe2c41afa5d6fec9bf50a0fa147709af6",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 24,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 34,
-      "matcher": "charger_power",
-      "propertiesHash": "sha256:e2aec0fc7f44107bc2e9a77ee243a6ae17c47b5938a5c117cb621ba75c824b77",
       "count": 1
     },
     {
@@ -695,13 +618,6 @@
     },
     {
       "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 35,
-      "matcher": "添加能量",
-      "propertiesHash": "sha256:33e157add4746ed537b27e4a75db4097681d39db6af610c6ccb21fdc100bdf7f",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
       "panelId": 47,
       "matcher": "battery_level",
       "propertiesHash": "sha256:2a6e4a9aeb7b1974ea2014912cc16ba82bff8aa4eb37cadf588c3aa3b339dfd6",
@@ -712,13 +628,6 @@
       "panelId": 47,
       "matcher": "charger_power",
       "propertiesHash": "sha256:e2aec0fc7f44107bc2e9a77ee243a6ae17c47b5938a5c117cb621ba75c824b77",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 47,
-      "matcher": "charger_voltage",
-      "propertiesHash": "sha256:3703a26fa53da22ae65d1678b93a20f7b6e2144628036e421f7bba912cbd5aa7",
       "count": 1
     },
     {
@@ -733,13 +642,6 @@
       "panelId": 47,
       "matcher": "usable_battery_level",
       "propertiesHash": "sha256:8dbe9d2cabff6ccc589fbd50786fea3e42a7a9c195f7be84cf84b499ca9a993c",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 49,
-      "matcher": "Current",
-      "propertiesHash": "sha256:1f38e2540f9677832382e06f199d4870084d714e6bc2b465da250a0a06af32bf",
       "count": 1
     },
     {
@@ -775,27 +677,6 @@
       "panelId": 49,
       "matcher": "usable_battery_level",
       "propertiesHash": "sha256:8dbe9d2cabff6ccc589fbd50786fea3e42a7a9c195f7be84cf84b499ca9a993c",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 5,
-      "matcher": "estimated_range",
-      "propertiesHash": "sha256:c0ec78306804b75499923251a0b0dbe6eb6acd2d96a96875ac0aec686d70dd5b",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 5,
-      "matcher": "initial_range",
-      "propertiesHash": "sha256:5959f4a33212578ea542d3f602fdbe1f015730448e89dd89d757412912020b48",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/CurrentChargeView.json",
-      "panelId": 5,
-      "matcher": "rated_range",
-      "propertiesHash": "sha256:681e8f4b69e72037462228081d60d2d18db38b58bfc39092107360d07b949225",
       "count": 1
     },
     {
@@ -1038,13 +919,6 @@
     },
     {
       "file": "grafana/dashboards/zh-cn/DCChargingCurvesByCarrier.json",
-      "panelId": 34,
-      "matcher": "duration_min",
-      "propertiesHash": "sha256:faee6aa6a4e455cf13861cf37f8a4d0fb8f6e5df128bbcd7262ef620ec5e3cf6",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/DCChargingCurvesByCarrier.json",
       "panelId": 35,
       "matcher": "car_id",
       "propertiesHash": "sha256:e09c286787d5af987a5bd4d70512ae1b75f43194710f2e2998a5d93230798178",
@@ -1139,13 +1013,6 @@
       "panelId": 10,
       "matcher": "distance",
       "propertiesHash": "sha256:9975177af085100ed0d5e440c974519e9e5def4d932a3db47d156642f5b0884a",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/MileageStats.json",
-      "panelId": 10,
-      "matcher": "duration_min",
-      "propertiesHash": "sha256:faee6aa6a4e455cf13861cf37f8a4d0fb8f6e5df128bbcd7262ef620ec5e3cf6",
       "count": 1
     },
     {
@@ -1346,27 +1213,6 @@
     },
     {
       "file": "grafana/dashboards/zh-cn/battery-health.json",
-      "panelId": 13,
-      "matcher": "可用容量(新车)",
-      "propertiesHash": "sha256:113ffbe2da5b5128fd4e0e4f567da2b85b20b619749c47f903a1f9a9f2bd75ad",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/battery-health.json",
-      "panelId": 13,
-      "matcher": "可用容量(现在)",
-      "propertiesHash": "sha256:0457f3e3a458946a626212d3df224e2b503feedd4768fff6fde844fb561bc3c8",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/battery-health.json",
-      "panelId": 13,
-      "matcher": "差异",
-      "propertiesHash": "sha256:993e749b4f56e53b01cc365bf7dfd39e9befc88506fea1b1454202abe66af30d",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/battery-health.json",
       "panelId": 32,
       "matcher": "efficiency",
       "propertiesHash": "sha256:8c7c2507f0fe39d3c04e6716828937dba3e8641ccb8bc85bdde89131e133e06b",
@@ -1375,36 +1221,8 @@
     {
       "file": "grafana/dashboards/zh-cn/battery-health.json",
       "panelId": 36,
-      "matcher": "# of Charges",
-      "propertiesHash": "sha256:2dac79b5766b63ab2cda3adc11be652697373388f902874b858d53b556ab62d2",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/battery-health.json",
-      "panelId": 36,
-      "matcher": "# of Charging cycles",
-      "propertiesHash": "sha256:a4d8e6e7fc7ecfc3b495064aa022d7f23667c3bb4bb5a10f2ef4df323f751321",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/battery-health.json",
-      "panelId": 36,
-      "matcher": "Charging Efficiency",
-      "propertiesHash": "sha256:724e9c1c5d1324bda2240970e7576721a5ba0c7c619167a746bb74d6f0b5fae3",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/battery-health.json",
-      "panelId": 36,
       "matcher": "car_id",
       "propertiesHash": "sha256:e09c286787d5af987a5bd4d70512ae1b75f43194710f2e2998a5d93230798178",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/battery-health.json",
-      "panelId": 37,
-      "matcher": "Data lost (not logged)",
-      "propertiesHash": "sha256:eb4a5322984d95d55131ae2f716aa0ff15120e6e4f8e8adb24a6775b05114ee0",
       "count": 1
     },
     {
@@ -1419,20 +1237,6 @@
       "panelId": 37,
       "matcher": "distance",
       "propertiesHash": "sha256:9975177af085100ed0d5e440c974519e9e5def4d932a3db47d156642f5b0884a",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/battery-health.json",
-      "panelId": 37,
-      "matcher": "总里程",
-      "propertiesHash": "sha256:3eca76253e1d8d981c244ca6afd731c8ca3bc1564380e625e566095c6834bc7e",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/battery-health.json",
-      "panelId": 37,
-      "matcher": "行驶里程",
-      "propertiesHash": "sha256:b59c562c07fc71853e3c99e1d5b42c8f8ca698fdd7cfed8355d5e7afe41365c0",
       "count": 1
     },
     {
@@ -1524,13 +1328,6 @@
       "panelId": 6,
       "matcher": "odometer",
       "propertiesHash": "sha256:3eca76253e1d8d981c244ca6afd731c8ca3bc1564380e625e566095c6834bc7e",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/charges.json",
-      "panelId": 6,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
       "count": 1
     },
     {
@@ -1710,37 +1507,9 @@
     },
     {
       "file": "grafana/dashboards/zh-cn/database-info.json",
-      "panelId": 38,
-      "matcher": "Row Count",
-      "propertiesHash": "sha256:ad9aa5045bf190ca37b8fa8e7c08816b60b3ae17df1409cd6dd129baf20e87f5",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/database-info.json",
       "panelId": 39,
       "matcher": "car_id",
       "propertiesHash": "sha256:e09c286787d5af987a5bd4d70512ae1b75f43194710f2e2998a5d93230798178",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/database-info.json",
-      "panelId": 41,
-      "matcher": "Index",
-      "propertiesHash": "sha256:6aa3e9332942a8219683bad4fad772719574721ca80895249e93c1caefeac26a",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/database-info.json",
-      "panelId": 41,
-      "matcher": "Index Size",
-      "propertiesHash": "sha256:d833cd5faa36959a5e975ff9c8e02474d8d0450422de1809edbc126efca32fce",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/database-info.json",
-      "panelId": 41,
-      "matcher": "Tuples Fetched",
-      "propertiesHash": "sha256:d2778f6e260002f01266a8f1b24ee44f88273b5cce72dc762e87a43c0da6d806",
       "count": 1
     },
     {
@@ -1858,20 +1627,6 @@
     {
       "file": "grafana/dashboards/zh-cn/drives.json",
       "panelId": 2,
-      "matcher": "id",
-      "propertiesHash": "sha256:5ba0b69ca3b8b5b20f7feb4c1d237b888beddbc96067426398dc766272457c43",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/drives.json",
-      "panelId": 2,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/drives.json",
-      "panelId": 2,
       "matcher": "power",
       "propertiesHash": "sha256:2af84702d648358511bf80e0ead6022e2ff4f2c778cc996598fe24b4124028f9",
       "count": 1
@@ -1965,13 +1720,6 @@
       "panelId": 2,
       "matcher": "duration_min",
       "propertiesHash": "sha256:faee6aa6a4e455cf13861cf37f8a4d0fb8f6e5df128bbcd7262ef620ec5e3cf6",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/efficiency.json",
-      "panelId": 2,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
       "count": 1
     },
     {
@@ -2271,13 +2019,6 @@
     {
       "file": "grafana/dashboards/zh-cn/statistics.json",
       "panelId": 2,
-      "matcher": "duration_min",
-      "propertiesHash": "sha256:faee6aa6a4e455cf13861cf37f8a4d0fb8f6e5df128bbcd7262ef620ec5e3cf6",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/statistics.json",
-      "panelId": 2,
       "matcher": "efficiency",
       "propertiesHash": "sha256:8c7c2507f0fe39d3c04e6716828937dba3e8641ccb8bc85bdde89131e133e06b",
       "count": 1
@@ -2287,13 +2028,6 @@
       "panelId": 2,
       "matcher": "odometer",
       "propertiesHash": "sha256:3eca76253e1d8d981c244ca6afd731c8ca3bc1564380e625e566095c6834bc7e",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/statistics.json",
-      "panelId": 2,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
       "count": 1
     },
     {
@@ -2341,13 +2075,6 @@
     {
       "file": "grafana/dashboards/zh-cn/timeline.json",
       "panelId": 2,
-      "matcher": "duration_min",
-      "propertiesHash": "sha256:faee6aa6a4e455cf13861cf37f8a4d0fb8f6e5df128bbcd7262ef620ec5e3cf6",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/timeline.json",
-      "panelId": 2,
       "matcher": "efficiency",
       "propertiesHash": "sha256:8c7c2507f0fe39d3c04e6716828937dba3e8641ccb8bc85bdde89131e133e06b",
       "count": 1
@@ -2357,13 +2084,6 @@
       "panelId": 2,
       "matcher": "odometer",
       "propertiesHash": "sha256:3eca76253e1d8d981c244ca6afd731c8ca3bc1564380e625e566095c6834bc7e",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/timeline.json",
-      "panelId": 2,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
       "count": 1
     },
     {
@@ -2413,13 +2133,6 @@
       "panelId": 2,
       "matcher": "end_date",
       "propertiesHash": "sha256:9d8294eaab5be13b53aa3ca182fd6d76913bc72d34438eb78efd77d498127298",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/trip.json",
-      "panelId": 2,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
       "count": 1
     },
     {
@@ -2574,13 +2287,6 @@
       "panelId": 36,
       "matcher": "odometer",
       "propertiesHash": "sha256:3eca76253e1d8d981c244ca6afd731c8ca3bc1564380e625e566095c6834bc7e",
-      "count": 1
-    },
-    {
-      "file": "grafana/dashboards/zh-cn/trip.json",
-      "panelId": 36,
-      "matcher": "outside_temp",
-      "propertiesHash": "sha256:23bad49d7966d39171799f55e82c7964f5c4bfcc3800ea4cdfe9e5e026165523",
       "count": 1
     },
     {

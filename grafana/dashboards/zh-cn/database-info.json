@@ -779,7 +779,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Row Count"
+              "options": "行数"
             },
             "properties": [
               {
@@ -888,7 +888,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Index Size"
+              "options": "索引大小"
             },
             "properties": [
               {
@@ -924,7 +924,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Index"
+              "options": "索引"
             },
             "properties": [
               {
@@ -944,7 +944,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Tuples Fetched"
+              "options": "获取元组数"
             },
             "properties": [
               {
@@ -1839,12 +1839,12 @@
           "type": "grafana-postgresql-datasource",
           "uid": "TeslaMate"
         },
-        "definition": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'SELECT stats_reset FROM pg_stat_statements_info;' else 'SELECT NULL;' end",
+        "definition": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'SELECT stats_reset FROM pg_stat_statements_info;' else 'SELECT ''未启用'' AS \"状态\";' end",
         "hide": 2,
         "includeAll": false,
         "name": "pg_stat_statements_info_last_reset",
         "options": [],
-        "query": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'SELECT stats_reset FROM pg_stat_statements_info;' else 'SELECT NULL;' end",
+        "query": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'SELECT stats_reset FROM pg_stat_statements_info;' else 'SELECT ''未启用'' AS \"状态\";' end",
         "refresh": 1,
         "regex": "",
         "type": "query",
@@ -1856,12 +1856,12 @@
           "type": "grafana-postgresql-datasource",
           "uid": "TeslaMate"
         },
-        "definition": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'SELECT count(*) FROM pg_stat_statements;' else 'SELECT NULL;' end",
+        "definition": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'SELECT count(*) FROM pg_stat_statements;' else 'SELECT ''未启用'' AS \"状态\";' end",
         "hide": 2,
         "includeAll": false,
         "name": "pg_stat_statements_count",
         "options": [],
-        "query": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'SELECT count(*) FROM pg_stat_statements;' else 'SELECT NULL;' end",
+        "query": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'SELECT count(*) FROM pg_stat_statements;' else 'SELECT ''未启用'' AS \"状态\";' end",
         "refresh": 1,
         "regex": "",
         "type": "query",
@@ -1873,12 +1873,12 @@
           "type": "grafana-postgresql-datasource",
           "uid": "TeslaMate"
         },
-        "definition": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'select\n  calls as \"Calls\",\n  mean_exec_time as \"Mean Exec Time\",\n  total_exec_time as \"Total Exec Time\",\n  query as \"Query\"\nfrom pg_stat_statements\nORDER BY mean_exec_time desc\nlimit 20;' else 'SELECT NULL;' end",
+        "definition": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'select\n  calls as \"Calls\",\n  mean_exec_time as \"Mean Exec Time\",\n  total_exec_time as \"Total Exec Time\",\n  query as \"Query\"\nfrom pg_stat_statements\nORDER BY mean_exec_time desc\nlimit 20;' else 'SELECT NULL AS \"调用次数\", NULL AS \"平均执行时间\", NULL AS \"总执行时间\", NULL AS \"未启用(见说明)\";' end",
         "hide": 2,
         "includeAll": false,
         "name": "pg_stat_statements_top_20_mean",
         "options": [],
-        "query": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'select\n  calls as \"Calls\",\n  mean_exec_time as \"Mean Exec Time\",\n  total_exec_time as \"Total Exec Time\",\n  query as \"Query\"\nfrom pg_stat_statements\nORDER BY mean_exec_time desc\nlimit 20;' else 'SELECT NULL;' end",
+        "query": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'select\n  calls as \"Calls\",\n  mean_exec_time as \"Mean Exec Time\",\n  total_exec_time as \"Total Exec Time\",\n  query as \"Query\"\nfrom pg_stat_statements\nORDER BY mean_exec_time desc\nlimit 20;' else 'SELECT NULL AS \"调用次数\", NULL AS \"平均执行时间\", NULL AS \"总执行时间\", NULL AS \"未启用(见说明)\";' end",
         "refresh": 1,
         "regex": "",
         "type": "query",
@@ -1890,12 +1890,12 @@
           "type": "grafana-postgresql-datasource",
           "uid": "TeslaMate"
         },
-        "definition": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'select\n  calls as \"Calls\",\n  mean_exec_time as \"Mean Exec Time\",\n  total_exec_time as \"Total Exec Time\",\n  query as \"Query\"\nfrom pg_stat_statements\nORDER BY total_exec_time desc\nlimit 20;' else 'SELECT NULL;' end",
+        "definition": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'select\n  calls as \"Calls\",\n  mean_exec_time as \"Mean Exec Time\",\n  total_exec_time as \"Total Exec Time\",\n  query as \"Query\"\nfrom pg_stat_statements\nORDER BY total_exec_time desc\nlimit 20;' else 'SELECT NULL AS \"调用次数\", NULL AS \"平均执行时间\", NULL AS \"总执行时间\", NULL AS \"未启用(见说明)\";' end",
         "hide": 2,
         "includeAll": false,
         "name": "pg_stat_statements_top_20_total",
         "options": [],
-        "query": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'select\n  calls as \"Calls\",\n  mean_exec_time as \"Mean Exec Time\",\n  total_exec_time as \"Total Exec Time\",\n  query as \"Query\"\nfrom pg_stat_statements\nORDER BY total_exec_time desc\nlimit 20;' else 'SELECT NULL;' end",
+        "query": "SELECT\n    CASE WHEN $pg_stat_statements_enabled = 1 THEN 'select\n  calls as \"Calls\",\n  mean_exec_time as \"Mean Exec Time\",\n  total_exec_time as \"Total Exec Time\",\n  query as \"Query\"\nfrom pg_stat_statements\nORDER BY total_exec_time desc\nlimit 20;' else 'SELECT NULL AS \"调用次数\", NULL AS \"平均执行时间\", NULL AS \"总执行时间\", NULL AS \"未启用(见说明)\";' end",
         "refresh": 1,
         "regex": "",
         "type": "query",

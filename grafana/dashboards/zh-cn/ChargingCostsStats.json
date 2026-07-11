@@ -3075,7 +3075,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "周期"
+              "options": "Period"
             },
             "properties": [
               {
@@ -3096,7 +3096,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "效率"
+              "options": "Efficiency"
             },
             "properties": [
               {
@@ -3600,8 +3600,8 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "outside_temp"
+              "id": "byRegexp",
+              "options": "^avg_outside_temp_.*"
             },
             "properties": [
               {
@@ -3878,8 +3878,7 @@
               "date_from": false,
               "date_to": false,
               "efficiency_charged_net_km_temp": true,
-              "efficiency_charged_net_mi_temp": true,
-              "timezone": true
+              "efficiency_charged_net_mi_temp": true
             },
             "indexByName": {
               "avg_consumption_kwh": 8,
@@ -3900,7 +3899,6 @@
             "renameByName": {
               "avg_consumption_kwh": "Avg charged",
               "avg_outside_temp_c": "",
-              "cnt": "# drives",
               "cnt_charges": "# charges",
               "cost_charges": "Costs",
               "date": "Starting at",
@@ -3910,8 +3908,7 @@
               "efficiency": "Efficiency",
               "efficiency_net_km": "",
               "sum_consumption_kwh": "Energy charged",
-              "sum_distance_km": "",
-              "sum_duration_h": "Time driven"
+              "sum_distance_km": ""
             }
           }
         }

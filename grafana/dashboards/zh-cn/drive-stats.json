@@ -1319,8 +1319,7 @@
               "names": [
                 "Elapsed",
                 "Time",
-                "Speed",
-                "SpeedUnit"
+                "Speed"
               ]
             }
           }

@@ -1008,18 +1008,6 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "id"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "distance_mi"
             },
             "properties": [
@@ -1342,8 +1330,8 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "outside_temp"
+              "id": "byRegexp",
+              "options": "^outside_temp_.*"
             },
             "properties": [
               {

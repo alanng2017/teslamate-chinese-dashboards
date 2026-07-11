@@ -105,7 +105,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "可用容量(新车)"
+              "options": "可用容量 (新)"
             },
             "properties": [
               {
@@ -117,7 +117,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "可用容量(现在)"
+              "options": "可用容量 (现在)"
             },
             "properties": [
               {
@@ -129,7 +129,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "差异"
+              "options": "差值"
             },
             "properties": [
               {
@@ -383,7 +383,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "行驶里程"
+              "options": "里程"
             },
             "properties": [
               {
@@ -395,7 +395,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Data lost (not logged)"
+              "options": "数据丢失(未记录)"
             },
             "properties": [
               {
@@ -407,7 +407,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "总里程"
+              "options": "里程表"
             },
             "properties": [
               {
@@ -942,7 +942,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "# of Charges"
+              "options": "充电次数"
             },
             "properties": [
               {
@@ -954,7 +954,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "# of Charging cycles"
+              "options": "充电周期数"
             },
             "properties": [
               {
@@ -998,7 +998,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Charging Efficiency"
+              "options": "充电效率"
             },
             "properties": [
               {

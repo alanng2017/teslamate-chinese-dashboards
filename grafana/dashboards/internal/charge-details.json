@@ -328,18 +328,6 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "outside_temp"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "车外温度"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "car_id"
             },
             "properties": [
@@ -1289,7 +1277,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "charger_power"
+              "options": "功率"
             },
             "properties": [
               {
@@ -1327,7 +1315,7 @@
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -1345,9 +1333,9 @@
             "uid": "TeslaMate"
           },
           "editorMode": "code",
-          "format": "time_series",
+          "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval),\r\navg(\r\n    case when charger_phases >= 1 then\r\n    cast(nullif(${determine_phases:sqlstring}, '') as numeric) * charger_actual_current * charger_voltage / 1000.0 else charger_power end) AS \"功率\" \r\nFROM charges WHERE charging_process_id = $charging_process_id\r\nGROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT avg(case when charger_phases >= 1 then cast(nullif(${determine_phases:sqlstring}, '') as numeric) * charger_actual_current * charger_voltage / 1000.0 else charger_power end) AS \"功率\" FROM charges WHERE charging_process_id = $charging_process_id",
           "refId": "Current",
           "sql": {
             "columns": [
@@ -1421,8 +1409,8 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "outside_temp"
+              "id": "byRegexp",
+              "options": "^outside_temp_.*"
             },
             "properties": [
               {
@@ -1448,7 +1436,7 @@
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -1466,9 +1454,9 @@
             "uid": "TeslaMate"
           },
           "editorMode": "code",
-          "format": "time_series",
+          "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval),\r\nconvert_celsius(avg(outside_temp), '$temp_unit') as outside_temp_$temp_unit \r\nFROM charges WHERE charging_process_id = $charging_process_id\r\nGROUP BY 1 ORDER BY 1 ",
+          "rawSql": "SELECT convert_celsius(avg(outside_temp), '$temp_unit') as outside_temp_$temp_unit FROM charges WHERE charging_process_id = $charging_process_id",
           "refId": "Current",
           "sql": {
             "columns": [

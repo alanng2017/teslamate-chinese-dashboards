@@ -2067,18 +2067,6 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "outside_temp"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "车外温度"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "distance"
             },
             "properties": [
@@ -2664,18 +2652,6 @@
               {
                 "id": "custom.hidden",
                 "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "outside_temp"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "车外温度"
               }
             ]
           },

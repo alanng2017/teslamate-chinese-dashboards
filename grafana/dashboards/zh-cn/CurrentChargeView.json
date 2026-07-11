@@ -548,12 +548,12 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "format": "time_series",
+          "format": "table",
           "group": [],
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval), avg(charge_energy_added) AS \"增加\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date) GROUP BY 1 ",
+          "rawSql": "SELECT max(charge_energy_added) AS \"增加\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date)",
           "refId": "B",
           "select": [
             [
@@ -937,7 +937,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "添加能量"
+              "options": "增加能量"
             },
             "properties": [
               {
@@ -1011,7 +1011,7 @@
           "orderByTime": "ASC",
           "policy": "default",
           "rawQuery": true,
-          "rawSql": " SELECT battery_level as \"数值\" FROM charges \twhere charging_process_id=$charging_processes \tORDER BY DATE ASC \tLIMIT 1",
+          "rawSql": " SELECT battery_level as \"起始电量\" FROM charges \twhere charging_process_id=$charging_processes \tORDER BY DATE ASC \tLIMIT 1",
           "refId": "Inital SOC",
           "resultFormat": "time_series",
           "select": [
@@ -1426,7 +1426,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "odometer"
+              "options": "里程表"
             },
             "properties": [
               {
@@ -1544,7 +1544,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "initial_range"
+              "options": "初始续航"
             },
             "properties": [
               {
@@ -1556,7 +1556,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "rated_range"
+              "options": "额定续航"
             },
             "properties": [
               {
@@ -1568,7 +1568,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "estimated_range"
+              "options": "预估续航"
             },
             "properties": [
               {
@@ -1609,7 +1609,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "format": "time_series",
+          "format": "table",
           "group": [],
           "groupBy": [],
           "hide": false,
@@ -1618,7 +1618,7 @@
           "orderByTime": "ASC",
           "policy": "default",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval), avg(convert_km(rated_battery_range_km, '$length_unit')) as \"初始续航\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date) GROUP BY 1 ORDER BY 1 asc limit 1",
+          "rawSql": "SELECT convert_km(rated_battery_range_km, '$length_unit') as \"初始续航\" FROM charges WHERE charging_process_id = $charging_processes AND rated_battery_range_km IS NOT NULL AND $__timeFilter(date) ORDER BY date ASC LIMIT 1",
           "refId": "Initial Range",
           "resultFormat": "time_series",
           "select": [
@@ -1651,7 +1651,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "format": "time_series",
+          "format": "table",
           "group": [],
           "groupBy": [],
           "hide": false,
@@ -1660,7 +1660,7 @@
           "orderByTime": "ASC",
           "policy": "default",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval), avg(convert_km(rated_battery_range_km, '$length_unit')) as \"额定续航\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date) GROUP BY 1 ORDER BY 1 desc limit 1",
+          "rawSql": "SELECT convert_km(rated_battery_range_km, '$length_unit') as \"额定续航\" FROM charges WHERE charging_process_id = $charging_processes AND rated_battery_range_km IS NOT NULL AND $__timeFilter(date) ORDER BY date DESC LIMIT 1",
           "refId": "Rated",
           "resultFormat": "time_series",
           "select": [
@@ -1701,7 +1701,7 @@
           "orderByTime": "ASC",
           "policy": "default",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval), avg(convert_km(est_battery_range_km, '$length_unit')) as \"预估续航\" FROM positions WHERE $__timeFilter(date) GROUP BY 1 ORDER BY 1 desc limit 1",
+          "rawSql": "SELECT $__timeGroupAlias(date,$__interval), avg(convert_km(est_battery_range_km, '$length_unit')) as \"预估续航\" FROM positions WHERE car_id = $car_id AND $__timeFilter(date) AND est_battery_range_km IS NOT NULL GROUP BY 1 ORDER BY 1 desc limit 1",
           "refId": "Estimated",
           "resultFormat": "time_series",
           "select": [
@@ -1756,7 +1756,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Current"
+              "options": "当前"
             },
             "properties": [
               {
@@ -1845,7 +1845,7 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -1860,12 +1860,12 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "format": "time_series",
+          "format": "table",
           "group": [],
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval), avg(case when charger_voltage > 2 then charger_actual_current else ((2.85 + (usable_battery_level * 0.013)) * 96) * charger_power / 100 end) AS \"当前\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date) GROUP BY 1 ORDER BY 1 ",
+          "rawSql": "SELECT avg(case when charger_voltage > 2 then charger_actual_current else ((2.85 + (usable_battery_level * 0.013)) * 96) * charger_power / 100 end) AS \"当前\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date)",
           "refId": "Current",
           "select": [
             [
@@ -1928,7 +1928,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "charger_voltage"
+              "options": "电压"
             },
             "properties": [
               {
@@ -1989,9 +1989,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
-          "fields": "/^电压$/",
+          "fields": "/^(电压|充电器电压)$/",
           "values": false
         },
         "text": {},
@@ -2004,11 +2004,11 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "format": "time_series",
+          "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval), avg(case when charger_voltage > 2 then charger_voltage else charger_power / GREATEST(0.1, (((2.85 + (usable_battery_level * 0.013)) * 96.0) * charger_power / 100.0)) * 1000.0 end) as \"电压\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date) GROUP BY 1 ORDER BY 1 ",
+          "rawSql": "SELECT avg(case when charger_voltage > 2 then charger_voltage else charger_power / GREATEST(0.1, (((2.85 + (usable_battery_level * 0.013)) * 96.0) * charger_power / 100.0)) * 1000.0 end) as \"电压\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date)",
           "refId": "Voltage",
           "select": [
             [
@@ -2054,7 +2054,7 @@
               }
             ]
           },
-          "unit": "volt"
+          "unit": "kW"
         },
         "overrides": [
           {
@@ -2072,7 +2072,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "charger_power"
+              "options": "功率"
             },
             "properties": [
               {
@@ -2109,7 +2109,7 @@
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -2124,12 +2124,12 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "format": "time_series",
+          "format": "table",
           "group": [],
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval), avg(case when charger_phases >= 1 then (case when charger_phases = 2 then 3 when charger_phases = 1 then 1 else 0 end) * charger_actual_current * charger_voltage / 1000.0 else charger_power end) AS \"功率\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date) GROUP BY 1 ORDER BY 1 ",
+          "rawSql": "SELECT avg(case when charger_phases >= 1 then (case when charger_phases = 2 then 3 when charger_phases = 1 then 1 else 0 end) * charger_actual_current * charger_voltage / 1000.0 else charger_power end) AS \"功率\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date)",
           "refId": "Current",
           "select": [
             [
@@ -2184,7 +2184,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "outside_temp"
+              "options": "车外温度"
             },
             "properties": [
               {
@@ -2196,7 +2196,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "inside_temp"
+              "options": "车内温度"
             },
             "properties": [
               {
@@ -2208,7 +2208,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "ac_temp"
+              "options": "空调温度"
             },
             "properties": [
               {
@@ -2260,11 +2260,11 @@
             "type": "grafana-postgresql-datasource",
             "uid": "TeslaMate"
           },
-          "format": "time_series",
+          "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(date,$__interval), avg(convert_celsius(outside_temp, '$temp_unit')) as \"车外温度\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date) GROUP BY 1 ORDER BY 1 ",
+          "rawSql": "SELECT avg(convert_celsius(outside_temp, '$temp_unit')) as \"车外温度\" FROM charges WHERE charging_process_id = $charging_processes AND $__timeFilter(date)",
           "refId": "Outdoor",
           "select": [
             [
@@ -2475,7 +2475,7 @@
         "name": "charging_processes",
         "options": [],
         "query": "SELECT id FROM charging_processes WHERE car_id = $car_id ORDER BY start_date DESC LIMIT 1",
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,

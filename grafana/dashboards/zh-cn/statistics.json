@@ -704,22 +704,6 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "duration_min"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "时长"
-              },
-              {
-                "id": "unit",
-                "value": "分钟"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "usable_battery_level"
             },
             "properties": [
@@ -767,8 +751,8 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "outside_temp"
+              "id": "byRegexp",
+              "options": "^avg_outside_temp_.*"
             },
             "properties": [
               {

@@ -175,7 +175,7 @@
                   {
                     "targetBlank": true,
                     "title": "显示充电详情",
-                    "url": "d/BHhxFeZRz?from=${__data.fields.start_date.numeric}&to=${__data.fields.end_date.numeric}&var-car_id=${car_id}&var-charging_process_id=${__data.fields.charging_process_id.numeric}"
+                    "url": "d/BHhxFeZRz?from=${__data.fields.开始日期.numeric}&to=${__data.fields.结束日期.numeric}&var-car_id=${car_id}&var-charging_process_id=${__data.fields.充电进程ID.numeric}"
                   }
                 ]
               }
@@ -774,7 +774,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "duration_min"
+              "options": "avg"
             },
             "properties": [
               {
