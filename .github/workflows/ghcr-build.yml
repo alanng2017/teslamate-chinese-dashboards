@@ -6,12 +6,35 @@ on:
       - main
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
   schedule:
     - cron: '0 2 * * 1'  # 每周一凌晨 2 点自动重新构建，拉取最新基础镜像修复漏洞
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dashboard JSON lint (9 项踩过的坑)
+        run: bash scripts/check-dashboard-lint.sh
+
+      - name: SQL 安装文件引用一致性
+        run: bash scripts/check-sql-trio.sh
+
+      - name: Dashboard JSON 环境残留脏值
+        run: bash scripts/check-dashboards-clean.sh
+
   build:
+    needs: lint
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
