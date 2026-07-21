@@ -1,0 +1,4 @@
+# 排除 .git:CI 构建加了 fetch-depth:0(git describe 需要全量 tag),
+# 使 .git 从浅克隆膨胀为完整历史(数十 MB)。Dockerfile 用精确路径 COPY、
+# 不含 .git,排除它纯粹为缩小 buildx 上传的构建上下文体积。
+.git

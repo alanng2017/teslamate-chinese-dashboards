@@ -2,11 +2,6 @@
 # 不锁定——Grafana 13.0.1 已用我们 45+3 个面板 + volkovlabs-form-panel 6.3.2 实测兼容）
 FROM teslamate/grafana:latest
 
-# 标签信息
-LABEL maintainer="wjsall"
-LABEL description="TeslaMate Grafana with Chinese Dashboards"
-LABEL version="1.7.10"
-
 # 强制中文语言设置（关键！）
 ENV GF_USERS_DEFAULT_LANGUAGE=zh-Hans
 ENV GF_USERS_DEFAULT_LOCALE=zh-Hans
@@ -43,3 +38,18 @@ COPY grafana/dashboards/internal/*.json /dashboards_internal/
 
 # 暴露端口
 EXPOSE 3000
+
+# 标签信息（故意放在文件最末尾，而不是紧跟 FROM）
+# 原因：ARG VERSION 的值每次发版都变，Docker 会把它计入"首次使用它的指令"（LABEL version）的
+# cache key；一旦这层 cache miss，它之后的所有层也会连带 miss。如果这两行留在文件靠前的位置，
+# 会连累上面昂贵的插件安装 RUN（grafana cli plugins install）和 COPY 层，导致每次 tag 发版
+# 都重装一遍插件（×2 架构，linux/amd64 + linux/arm64）。挪到最后，VERSION 变化只作废这条
+# 极轻的 LABEL 层本身，前面所有层继续命中缓存。
+# maintainer/description 是固定值，理论上放哪都不影响缓存，为了避免 LABEL 声明分散在两处，
+# 一并挪到这里。
+# version 由 CI 通过 --build-arg 注入真实版本号，见 .github/workflows/ghcr-build.yml；
+# 本地不传参构建时默认 "dev"，不会假冒成某个已发布的正式版本号。
+ARG VERSION=dev
+LABEL maintainer="wjsall"
+LABEL description="TeslaMate Grafana with Chinese Dashboards"
+LABEL version="${VERSION}"
