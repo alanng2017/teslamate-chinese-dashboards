@@ -1,5 +1,28 @@
 # TeslaMate 全中文版 Grafana 仪表盘
 
+**目录**
+
+- [你是谁？怎么走？](#who-are-you)
+- [⚡ 升级到最新版](#upgrade-latest)
+- [📸 效果预览](#screenshots)
+- [🎯 特点](#features)
+- [📊 汉化成果](#localization-stats)
+- [📚 使用文档](#docs)
+- [📁 包含的仪表盘](#dashboards-included)
+- [🚀 快速开始](#quick-start)
+- [🔧 故障排除](#troubleshooting-entry)
+- [📦 镜像信息](#image-info)
+- [🇨🇳 中国大陆用户专项配置](#cn-region)
+- [🔒 SQL 远程拉取的信任模型](#sql-trust-summary)
+- [🛠️ 系统要求](#requirements)
+- [📚 相关链接](#related-links)
+- [👏 贡献者](#contributors)
+- [🤝 贡献指南](#contributing)
+- [📄 License](#license)
+- [🙏 致谢](#acknowledgements)
+- [💬 问题反馈](#feedback)
+- [💰 支持项目](#support)
+
 > 给中国 Tesla 车主用的 TeslaMate 数据可视化方案 — 45 个深度汉化仪表盘 + 国内地图源 + 分时电价 + Docker 一键部署。
 
 **和官方原版的差异**：
@@ -14,6 +37,8 @@
 > **English speakers**: this is a localization for Chinese-speaking Tesla owners. For the original project see [teslamate-org/teslamate](https://github.com/teslamate-org/teslamate).
 
 ---
+
+<a id="who-are-you"></a>
 
 ## 你是谁？怎么走？
 
@@ -59,7 +84,7 @@ bash scripts/upgrade.sh
 docker compose pull && docker compose up -d
 ```
 
-这条命令只更新镜像。新版本涉及 SQL 时，再执行唯一的 [四个 SQL 安装文件修复循环](TROUBLESHOOTING.md#repair-sql-install)；它会自动探测 database 容器，任一文件失败即停止，完成后重启 Grafana。Watchtower 也只换镜像，因此同样要补这一步。纯仪表盘版本（例如 v1.7.10）只需更新镜像。远程 SQL 的版本锁定与信任边界见 [SQL 远程拉取的信任模型](#sql-trust-model)。
+这条命令只更新镜像。新版本涉及 SQL 时，再执行唯一的 [四个 SQL 安装文件修复循环](TROUBLESHOOTING.md#repair-sql-install)；它会自动探测 database 容器，任一文件失败即停止，完成后重启 Grafana。Watchtower 也只换镜像，因此同样要补这一步。纯仪表盘版本（例如 v1.7.10）只需更新镜像。远程 SQL 的版本锁定与信任边界见 [SQL 远程拉取的信任模型](TROUBLESHOOTING.md#sql-trust-model)。
 
 <a id="upgrade-method-d"></a>
 
@@ -89,6 +114,8 @@ bash migrate-from-official.sh
 ![GitHub Issues](https://img.shields.io/github/issues/wjsall/teslamate-chinese-dashboards)
 ![Build Status](https://github.com/wjsall/teslamate-chinese-dashboards/actions/workflows/ghcr-build.yml/badge.svg)
 [![Telegram](https://img.shields.io/badge/Telegram-交流群-blue?logo=telegram)](https://t.me/+BeOASgmvE_IyNzNl)
+
+<a id="screenshots"></a>
 
 ## 📸 效果预览
 
@@ -163,6 +190,8 @@ bash migrate-from-official.sh
 
 ---
 
+<a id="features"></a>
+
 ## 🎯 特点
 
 - ✅ **开箱即用** - 无需 Docker Hub 账号，直接挂载使用
@@ -172,6 +201,8 @@ bash migrate-from-official.sh
 - 🌏 **地图源一键切换（独有）** - 9 个含地图仪表盘顶部加 OSM / 高德 / 高德卫星 / 谷歌 / 谷歌卫星 / Carto 下拉框，秒切，自动 GCJ-02 坐标纠偏（v1.4.2+）
   - 国内用户告别手动改 SQL，海外华人用户也能用谷歌中文路网
 - ✅ **完整适配 TeslaMate 4.0** - 同步官方全部新特性，已在 **TeslaMate v4.0.1 + Grafana 13.0.1** 实测兼容
+
+<a id="localization-stats"></a>
 
 ## 📊 汉化成果
 
@@ -186,6 +217,8 @@ bash migrate-from-official.sh
 
 **45 个仪表盘深度汉化，持续优化中，开箱即用！** 🎉
 
+<a id="docs"></a>
+
 ## 📚 使用文档
 
 我们为你准备了五份详细的使用指南：
@@ -199,6 +232,8 @@ bash migrate-from-official.sh
 | **[故障排查手册](TROUBLESHOOTING.md)** | 遇到问题按症状查解决方案 | 遇到问题时 |
 
 **新手建议**：先看「新手向导」→「功能地图」→「场景速查手册」→「数据指标手册」
+
+<a id="dashboards-included"></a>
 
 ## 📁 包含的仪表盘
 
@@ -220,9 +255,13 @@ bash migrate-from-official.sh
 
 中国大陆镜像拉取失败时，直接走 [故障排查中的镜像修复](TROUBLESHOOTING.md#image-pull-cn)；不要在多份安装文档间复制镜像源配置。
 
+<a id="troubleshooting-entry"></a>
+
 ## 🔧 故障排除
 
 完整故障排查手册 → [TROUBLESHOOTING.md](TROUBLESHOOTING.md)（覆盖部署 / 仪表盘显示 / 数据 / Tesla 授权 / 升级 / 中国大陆专项等常见问题）
+
+<a id="image-info"></a>
 
 ## 📦 镜像信息
 
@@ -262,49 +301,14 @@ services:
 
 完整环境变量参考：[TeslaMate 官方文档](https://docs.teslamate.org/docs/configuration/environment_variables)
 
-<a id="sql-trust-model"></a>
+<a id="sql-trust-summary"></a>
 
 ## 🔒 SQL 远程拉取的信任模型
 
-升级路径中的所有「SQL 安装文件」（`install-coord-functions` / `install-unit-functions` / `install-tou` / `install-indexes`）都是从 GitHub 拉到本地用 `psql` 执行。这是**典型的 `curl | bash` 信任模型**：
+升级路径会从 GitHub 拉取四个 SQL 安装文件并交给 `psql` 执行；默认 `main` 与 `:latest` 同步，也可锁定 tag。
+传输安全、来源与维护者风险、版本锁定方式，以及第三方/自建镜像的信任边界见 [故障排查手册：SQL 远程拉取的信任模型](TROUBLESHOOTING.md#sql-trust-model)。
 
-- ✅ **传输安全**：HTTPS + GitHub 证书，中间人无法篡改
-- ⚠️ **来源信任**：你信任 `wjsall/teslamate-chinese-dashboards` 仓库的内容
-- ⚠️ **维护者风险**：若维护者 GitHub 账号被盗，攻击者可推恶意 SQL → 所有用 `main` ref 的用户下次升级会拉到恶意脚本 → psql 执行 → **数据库层任意代码执行**
-
-### 想强化安全的用户：锁固定版本
-
-把所有命令里的 `main` 替换成具体 tag（如 `v1.6.2`）：
-
-```bash
-# 原（默认，跟 :latest 镜像同步）
-curl -fsSL "https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/main/sql/install-tou.sql" | ...
-
-# 锁版本（推荐有安全洁癖的用户）
-curl -fsSL "https://raw.githubusercontent.com/wjsall/teslamate-chinese-dashboards/v1.6.2/sql/install-tou.sql" | ...
-```
-
-或者跑 `simple-deploy.sh` / `migrate-from-official.sh` 时传环境变量：
-
-```bash
-SQL_REF=v1.6.2 bash simple-deploy.sh
-REPO_REF=v1.6.2 bash migrate-from-official.sh
-```
-
-锁版本后**升级到新功能需要手动改 ref 数字**（不会自动升）。这是**安全 vs 便利的 trade-off**，按你需求选。
-
-### 为什么默认是 `main` 而不是固定版本
-
-- 大部分用户希望"重跑脚本就能拿到最新 bug 修复 / 函数升级"，固定 ref 反而让 Watchtower 自动升镜像后 SQL 不同步
-- 维护者账号被盗概率低（GitHub 2FA），破坏面广（所有用户）—— **这条主要靠 GitHub 账号防御 + 你愿意时锁版本**
-- 仓库公开，每条 SQL commit 都可审计，社区和我（维护者）第一时间能看到异常 push
-
-### Cloudflare 镜像（避免直连 GitHub raw）
-
-国内访问 `raw.githubusercontent.com` 偶尔不稳，可以替换成镜像。**注意信任边界**：
-
-- **`ghproxy.com` 等第三方镜像** ⚠️ — 镜像运营方能改返回内容（实际是新加一个 MITM 信任点），仅在你信任该镜像方时使用
-- **自建 Cloudflare Worker 转发 raw 内容** ✅ — 你完全控制 Worker 源码 → 等价直连
+<a id="requirements"></a>
 
 ## 🛠️ 系统要求
 
@@ -321,6 +325,8 @@ REPO_REF=v1.6.2 bash migrate-from-official.sh
 - ✅ macOS (Intel/Apple Silicon)
 - ✅ Windows (WSL2)
 - ✅ 树莓派 **ARM64（64 位系统）** —— TeslaMate **v4.0 起已停止 ARMv7（32 位）支持**，老树莓派（Pi 3/4 装的 32 位 OS）需刷成 64 位系统才能升到 v4.0+
+
+<a id="related-links"></a>
 
 ## 📚 相关链接
 
@@ -340,6 +346,8 @@ REPO_REF=v1.6.2 bash migrate-from-official.sh
 - **问题反馈**: https://github.com/wjsall/teslamate-chinese-dashboards/issues
 - **中文文档**: https://github.com/wjsall/teslamate-chinese-dashboards
 
+<a id="contributors"></a>
+
 ## 👏 贡献者
 
 感谢以下贡献者的辛勤付出:
@@ -348,39 +356,19 @@ REPO_REF=v1.6.2 bash migrate-from-official.sh
 - [@wjsall](https://github.com/wjsall) - 项目发起人、主要汉化
 - 社区贡献者 - 翻译校对、建议反馈
 
-### 如何成为贡献者?
-
-我们欢迎任何形式的贡献:
-- 🌐 翻译改进
-- 🐛 问题反馈
-- 📝 文档完善
-- 💡 功能建议
-- ⭐ 给项目点 Star
-
-[查看贡献指南](CONTRIBUTING.md)
+<a id="contributing"></a>
 
 ## 🤝 贡献指南
 
-欢迎提交 Issue 和 PR 改进汉化质量！
+欢迎提交 Issue 和 PR 改进汉化质量！报告问题、翻译流程、术语表、翻译原则、禁止事项、本地测试、验证清单和 PR 格式均以 [CONTRIBUTING.md](CONTRIBUTING.md) 为准。
 
-### 如何贡献
-
-1. **Fork 本项目**
-2. **修改仪表盘 JSON 文件**
-   - 文件位置: `grafana/dashboards/zh-cn/`
-3. **提交 PR**
-   - 说明修改内容和原因
-   - 确保 JSON 格式正确
-
-### 翻译规范
-
-- 使用简体中文
-- 保持专业术语准确性
-- 参考特斯拉官方中文术语
+<a id="license"></a>
 
 ## 📄 License
 
 MIT License - 与 TeslaMate 项目相同
+
+<a id="acknowledgements"></a>
 
 ## 🙏 致谢
 
@@ -389,6 +377,8 @@ MIT License - 与 TeslaMate 项目相同
 - **验证测试**: 自动化脚本
 - **原始项目**: [TeslaMate](https://github.com/teslamate-org/teslamate)
 - **英文仪表盘参考**: [@jheredianet](https://github.com/jheredianet) — [Teslamate-CustomGrafanaDashboards](https://github.com/jheredianet/Teslamate-CustomGrafanaDashboards)，部分面板实现逻辑参考自其原版设计
+
+<a id="feedback"></a>
 
 ## 💬 问题反馈
 
@@ -399,6 +389,8 @@ MIT License - 与 TeslaMate 项目相同
 **如果本项目对你有帮助，请给个 ⭐ Star！**
 
 ---
+
+<a id="support"></a>
 
 ## 💰 支持项目
 

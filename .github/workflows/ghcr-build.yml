@@ -6,12 +6,35 @@ on:
       - main
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
   schedule:
     - cron: '0 2 * * 1'  # 每周一凌晨 2 点自动重新构建，拉取最新基础镜像修复漏洞
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dashboard JSON lint (9 项踩过的坑)
+        run: bash scripts/check-dashboard-lint.sh
+
+      - name: SQL 安装文件引用一致性
+        run: bash scripts/check-sql-trio.sh
+
+      - name: Dashboard JSON 环境残留脏值
+        run: bash scripts/check-dashboards-clean.sh
+
   build:
+    needs: lint
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -20,6 +43,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 拉全历史 + 全部 tag，下面 "Resolve image version" 步骤要跑 git describe
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -54,6 +79,25 @@ jobs:
             type=sha,prefix=sha-
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Resolve image version
+        id: version
+        env:
+          META_VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          # tag push（github.ref = refs/tags/vX.Y.Z）：沿用 metadata-action 剥掉 v 前缀后的版本号
+          # （如 1.8.4），与镜像 tag 命名一致。
+          # main push / schedule / workflow_dispatch（= :latest 镜像的来源）：这类构建没有干净的
+          # 语义化版本，steps.meta.outputs.version 在这些场景下只是常量 "main"，用户 pull 到 latest
+          # 后无法判断是否升级过。改用 git describe 得到"最近 tag + 领先提交数 + 短 sha"
+          # （如 v1.8.4-3-gabc123），单调递增、可自诊断。--always 兜底到短 sha（找不到 tag 时），
+          # || echo dev 兜底仓库彻底没有 tag 的极端情况。
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            FINAL="$META_VERSION"
+          else
+            FINAL="$(git describe --tags --always 2>/dev/null || echo dev)"
+          fi
+          echo "version=$FINAL" >> "$GITHUB_OUTPUT"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -62,5 +106,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -163,7 +163,7 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "lengthmi"
+                "value": "none"
               },
               {
                 "id": "custom.axisPlacement",
