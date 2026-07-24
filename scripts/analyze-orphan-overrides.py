@@ -426,8 +426,7 @@ def build_report(contract, baseline, renames, head):
         '',
         f'> 基于 `{head}` 的最终字段契约与 git 历史生成。',
         '>',
-        '> 执行前提：卡②会按批次在 NAS 上进行 Grafana 预览；所有标注“需 Grafana 预览”的动作'
-        '必须预览通过后再落盘。',
+        '> 标注“需 Grafana 预览”的动作，请在 Grafana 中确认渲染无误后再落盘。',
         '',
         '## 对账与统计',
         '',
