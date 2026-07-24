@@ -10,3 +10,4 @@ __pycache__/
 .cold-review-lint.md
 .cold-review-sen.md
 .cold-review-c1.md
+.dashboard-lint-orphan-verdicts.md

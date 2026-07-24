@@ -14,7 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LINT = ROOT / 'scripts/check-dashboard-lint.sh'
 BASELINE = ROOT / 'scripts/dashboard-lint-baseline.json'
-DEFAULT_OUTPUT = ROOT / 'docs/dashboard-lint-orphan-verdicts.md'
+# 内部审计产物，不进仓库（.gitignore 已忽略）；需要时本地重新生成即可。
+DEFAULT_OUTPUT = ROOT / '.dashboard-lint-orphan-verdicts.md'
 CJK_RE = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]')
 BEHAVIOR_IDS = {'links', 'unit', 'mappings', 'thresholds'}
 GENERIC_DISPLAY_NAMES = {
@@ -423,8 +424,7 @@ def build_report(contract, baseline, renames, head):
     lines = [
         '# Dashboard lint 孤儿 override 判决书',
         '',
-        f'> 基于 `{head}` 的最终字段契约与 git 历史生成。背景审计见 '
-        '[dashboard-lint-first-run-findings.md](dashboard-lint-first-run-findings.md)。',
+        f'> 基于 `{head}` 的最终字段契约与 git 历史生成。',
         '>',
         '> 执行前提：卡②会按批次在 NAS 上进行 Grafana 预览；所有标注“需 Grafana 预览”的动作'
         '必须预览通过后再落盘。',
